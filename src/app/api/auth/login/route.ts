@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { users } from "@/db/schema";
+import { users, loginAttempts } from "@/db/schema";
 import { verifyPassword, createToken } from "@/lib/auth";
+import { isOverLimit, nextFailureState } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
 
 export const runtime = 'edge';
@@ -15,6 +16,15 @@ interface LoginRequestBody {
 // does not exist, so login timing cannot be used to enumerate usernames.
 const DUMMY_PASSWORD_HASH =
   "$2b$10$oVWrt8kuk5dcizHw9RXIjOQc6g/pfehBV14fEYpyvDDq9OgB9bGcq";
+
+// Cloudflare sets cf-connecting-ip to the real client IP (not client-spoofable).
+function clientIp(request: NextRequest): string {
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +40,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Per-IP fixed-window rate limit: reject once too many failed attempts pile
+    // up in the window, before doing any user lookup or password hashing.
+    const ip = clientIp(request);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const attemptRow = (await db
+      .select()
+      .from(loginAttempts)
+      .where(eq(loginAttempts.ip, ip))
+      .get()) ?? null;
+
+    const limit = isOverLimit(attemptRow, nowSeconds);
+    if (limit.limited) {
+      return NextResponse.json(
+        { error: "登录尝试过于频繁，请稍后再试" },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+      );
+    }
+
+    const recordFailure = async () => {
+      const next = nextFailureState(attemptRow, nowSeconds);
+      await db
+        .insert(loginAttempts)
+        .values({ ip, windowStart: next.windowStart, attempts: next.attempts })
+        .onConflictDoUpdate({
+          target: loginAttempts.ip,
+          set: { windowStart: next.windowStart, attempts: next.attempts },
+        })
+        .run();
+    };
+
     const user = await db
       .select()
       .from(users)
@@ -40,6 +80,7 @@ export async function POST(request: NextRequest) {
       // Run a dummy comparison so a missing user takes the same time as a
       // wrong password (prevents username enumeration via timing).
       await verifyPassword(password, DUMMY_PASSWORD_HASH);
+      await recordFailure();
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }
@@ -48,11 +89,15 @@ export async function POST(request: NextRequest) {
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
+      await recordFailure();
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }
       );
     }
+
+    // Successful login clears the failure counter for this IP.
+    await db.delete(loginAttempts).where(eq(loginAttempts.ip, ip)).run();
 
     const token = await createToken(user.id, user.role);
 

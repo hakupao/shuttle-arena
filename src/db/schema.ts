@@ -145,6 +145,13 @@ export const tournamentParticipants = sqliteTable("tournament_participants", {
   unique().on(t.tournamentId, t.userId),
 ]);
 
+// ========== 登录限速（按 IP 的固定窗口计数） ==========
+export const loginAttempts = sqliteTable("login_attempts", {
+  ip: text("ip").primaryKey(),
+  windowStart: integer("window_start").notNull(), // unix epoch seconds
+  attempts: integer("attempts").notNull().default(0),
+});
+
 // ========== 类型导出 ==========
 export type User = typeof users.$inferSelect;
 export type Tournament = typeof tournaments.$inferSelect;
@@ -157,3 +164,4 @@ export type MatchGame = typeof matchGames.$inferSelect;
 export type RefereeRecord = typeof refereeRecords.$inferSelect;
 export type ScoreEvent = typeof scoreEvents.$inferSelect;
 export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
+export type LoginAttempt = typeof loginAttempts.$inferSelect;

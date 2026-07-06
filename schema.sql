@@ -124,6 +124,12 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
   UNIQUE(tournament_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS login_attempts (
+  ip TEXT PRIMARY KEY,
+  window_start INTEGER NOT NULL,   -- unix epoch seconds when the window began
+  attempts INTEGER NOT NULL DEFAULT 0
+);
+
 -- Default admin account (password: admin123)
 -- You should change this password after first login
 -- NOTE: For proper password hashing, run `npx tsx src/db/seed.ts` instead of this SQL file.

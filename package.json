@@ -19,6 +19,7 @@
     "d1:init:local": "npx wrangler d1 execute shuttle-arena-db --local --file=schema.sql",
     "d1:migrate:archived": "npx wrangler d1 execute shuttle-arena-db --remote --file=scripts/migrate-add-archived-status.sql",
     "d1:migrate:constraints": "npx wrangler d1 execute shuttle-arena-db --remote --file=migrations/003_add_unique_constraints.sql",
+    "d1:migrate:ratelimit": "npx wrangler d1 execute shuttle-arena-db --remote --file=migrations/004_add_login_attempts.sql",
     "db:seed:sqlite": "tsx src/db/seed.ts",
     "d1:seed:demo": "npx wrangler d1 execute shuttle-arena-demo-db --remote --file=scripts/seed-demo.sql",
     "d1:seed:local": "npx wrangler d1 execute shuttle-arena-db --local --file=scripts/seed-local-d1.sql"
@@ -32,7 +33,7 @@
     "better-sqlite3": "^12.8.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "jose": "^6.2.1",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
