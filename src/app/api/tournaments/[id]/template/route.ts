@@ -10,7 +10,8 @@ import {
   scoreEvents,
 } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -250,49 +251,38 @@ export async function PUT(
       }
     }
 
-    // Template changes invalidate the generated schedule.
-    const scheduledMatches = await db
-      .select()
+    // Template changes invalidate the generated schedule. Apply the whole
+    // replace (delete schedule + old template, insert new template) as ONE
+    // atomic D1 batch so a mid-operation failure can't leave the tournament with
+    // no template. Match-child deletes use a subquery to avoid a huge IN list.
+    const scheduledMatchIds = db
+      .select({ id: tournamentMatches.id })
       .from(tournamentMatches)
-      .where(eq(tournamentMatches.tournamentId, tournamentId))
-      .all();
+      .where(eq(tournamentMatches.tournamentId, tournamentId));
 
-    for (const scheduledMatch of scheduledMatches) {
-      await db.delete(scoreEvents).where(eq(scoreEvents.matchId, scheduledMatch.id)).run();
-      await db.delete(refereeRecords).where(eq(refereeRecords.matchId, scheduledMatch.id)).run();
-      await db.delete(matchGames).where(eq(matchGames.matchId, scheduledMatch.id)).run();
-    }
-    await db
-      .delete(tournamentMatches)
-      .where(eq(tournamentMatches.tournamentId, tournamentId))
-      .run();
+    const writes: BatchItem<"sqlite">[] = [
+      db.delete(scoreEvents).where(inArray(scoreEvents.matchId, scheduledMatchIds)),
+      db.delete(refereeRecords).where(inArray(refereeRecords.matchId, scheduledMatchIds)),
+      db.delete(matchGames).where(inArray(matchGames.matchId, scheduledMatchIds)),
+      db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId)),
+      db.delete(templateMatches).where(eq(templateMatches.tournamentId, tournamentId)),
+      db.delete(templatePositions).where(eq(templatePositions.tournamentId, tournamentId)),
+    ];
 
-    // Delete existing template
-    await db.delete(templateMatches)
-      .where(eq(templateMatches.tournamentId, tournamentId))
-      .run();
-    await db.delete(templatePositions)
-      .where(eq(templatePositions.tournamentId, tournamentId))
-      .run();
-
-    // Insert new positions
     for (const pos of validatedPositions) {
-      await db
-        .insert(templatePositions)
-        .values({
+      writes.push(
+        db.insert(templatePositions).values({
           tournamentId,
           positionNumber: pos.positionNumber,
           gender: pos.gender,
         })
-        .run();
+      );
     }
 
-    // Insert new matches
     for (let i = 0; i < validatedMatches.length; i++) {
       const m = validatedMatches[i];
-      await db
-        .insert(templateMatches)
-        .values({
+      writes.push(
+        db.insert(templateMatches).values({
           tournamentId,
           matchType: m.matchType,
           homePos1: m.homePos1,
@@ -301,8 +291,10 @@ export async function PUT(
           awayPos2: m.awayPos2,
           sortOrder: i + 1,
         })
-        .run();
+      );
     }
+
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 
     // Query back inserted data
     const insertedPositions = await db

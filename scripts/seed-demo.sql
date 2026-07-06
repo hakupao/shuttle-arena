@@ -18,12 +18,17 @@ DELETE FROM tournaments;
 DELETE FROM users
 WHERE username <> 'demo';
 
+-- Public demo account is intentionally NOT an admin: the demo DB is reachable
+-- by anyone (credentials are published in the README), so an admin login would
+-- let visitors wipe/alter the shared demo. The demo is pre-seeded with a full
+-- tournament below, so an athlete-role account can still browse everything
+-- read-only. (To showcase admin workflows on a private demo, change to 'admin'.)
 INSERT OR IGNORE INTO users (id, username, password_hash, role)
-VALUES (1, 'demo', '$2b$10$R35Wjte3jeaGIwQZvTRquuoBZUPqjkpoDTzOeFXA44mMpkbE0jNJK', 'admin');
+VALUES (1, 'demo', '$2b$10$R35Wjte3jeaGIwQZvTRquuoBZUPqjkpoDTzOeFXA44mMpkbE0jNJK', 'athlete');
 
 UPDATE users
 SET password_hash = '$2b$10$R35Wjte3jeaGIwQZvTRquuoBZUPqjkpoDTzOeFXA44mMpkbE0jNJK',
-    role = 'admin',
+    role = 'athlete',
     player_id = NULL
 WHERE username = 'demo';
 

@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { tournamentParticipants, tournaments, groups, players, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -101,6 +102,13 @@ export async function POST(
       position: number;
     }> = [];
 
+    // Collect every write and apply them as ONE atomic D1 batch, so a failure
+    // partway through can't leave users unbound-but-not-rebound / a half-drawn
+    // lottery. Batch statements run sequentially and see prior statements'
+    // effects, so expressing "unbind current holder" as a conditional UPDATE
+    // reproduces the original read-modify-write behavior exactly.
+    const writes: BatchItem<"sqlite">[] = [];
+
     // For each position, shuffle participants and assign to groups
     for (let pos = 1; pos <= totalPerGroup; pos++) {
       const posParticipants = byPosition.get(pos) || [];
@@ -122,31 +130,12 @@ export async function POST(
 
         // Update player name only if not already set
         if (!playerSlot.name) {
-          await db.update(players)
-            .set({ name: username })
-            .where(eq(players.id, playerSlot.id))
-            .run();
+          writes.push(db.update(players).set({ name: username }).where(eq(players.id, playerSlot.id)));
         }
 
-        // Bind user to player
-        // First unbind any existing binding
-        const currentlyBound = await db
-          .select()
-          .from(users)
-          .where(eq(users.playerId, playerSlot.id))
-          .all();
-        for (const u of currentlyBound) {
-          await db.update(users)
-            .set({ playerId: null })
-            .where(eq(users.id, u.id))
-            .run();
-        }
-
-        // Bind new user
-        await db.update(users)
-          .set({ playerId: playerSlot.id })
-          .where(eq(users.id, participant.userId))
-          .run();
+        // Unbind whoever currently holds this slot, then bind the drawn user.
+        writes.push(db.update(users).set({ playerId: null }).where(eq(users.playerId, playerSlot.id)));
+        writes.push(db.update(users).set({ playerId: playerSlot.id }).where(eq(users.id, participant.userId)));
 
         assignments.push({
           playerId: playerSlot.id,
@@ -156,6 +145,10 @@ export async function POST(
           position: pos,
         });
       }
+    }
+
+    if (writes.length > 0) {
+      await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
     }
 
     return NextResponse.json({

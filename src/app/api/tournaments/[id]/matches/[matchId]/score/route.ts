@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { matches, matchGames, refereeRecords, scoreEvents, tournaments } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { SCORING_MODES, type ScoringMode } from "@/lib/constants";
 import { eq } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -38,6 +40,12 @@ export async function POST(
 ) {
   try {
     const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "请先登录后再记分" },
+        { status: 401 }
+      );
+    }
     const db = getDb();
     const { id, matchId: matchIdStr } = await params;
     const tournamentId = parseInt(id, 10);
@@ -63,7 +71,18 @@ export async function POST(
       return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
     }
 
-    const isAdmin = user?.role === "admin";
+    const isAdmin = user.role === "admin";
+
+    // Authorization: only admins or bound players (participants / referees /
+    // line judges are all bound players in this tournament) may submit scores.
+    // Logged-in spectator accounts with no player binding cannot.
+    if (!isAdmin && user.playerId == null) {
+      return NextResponse.json(
+        { error: "只有管理员或参赛选手可以记分" },
+        { status: 403 }
+      );
+    }
+
     if (match.status === "finished" && !isAdmin) {
       return NextResponse.json(
         { error: "比分已提交，如需修改请联系管理员" },
@@ -82,6 +101,28 @@ export async function POST(
     if (!Array.isArray(games) || games.length === 0) {
       return NextResponse.json(
         { error: "games must be a non-empty array of {homeScore, awayScore}" },
+        { status: 400 }
+      );
+    }
+
+    // Server-side score sanity limits (client is not trusted): bound the number
+    // of games to the tournament's scoring mode, cap per-game scores to block
+    // absurd/Infinity values from poisoning standings, and cap the timeline.
+    const scoringMode = (tournament?.scoringMode || "single_21") as ScoringMode;
+    const scoringInfo = SCORING_MODES[scoringMode] ?? SCORING_MODES.single_21;
+    const MAX_GAME_SCORE = 60; // real badminton tops out ~30; 60 is a safe ceiling
+    const MAX_SCORE_EVENTS = 2000;
+
+    if (games.length > scoringInfo.games) {
+      return NextResponse.json(
+        { error: `本赛制最多 ${scoringInfo.games} 局，收到 ${games.length} 局` },
+        { status: 400 }
+      );
+    }
+
+    if (scoreEventLog.length > MAX_SCORE_EVENTS) {
+      return NextResponse.json(
+        { error: "计分明细条目过多" },
         { status: 400 }
       );
     }
@@ -120,11 +161,15 @@ export async function POST(
       if (
         typeof game.homeScore !== "number" ||
         typeof game.awayScore !== "number" ||
+        !Number.isInteger(game.homeScore) ||
+        !Number.isInteger(game.awayScore) ||
         game.homeScore < 0 ||
-        game.awayScore < 0
+        game.awayScore < 0 ||
+        game.homeScore > MAX_GAME_SCORE ||
+        game.awayScore > MAX_GAME_SCORE
       ) {
         return NextResponse.json(
-          { error: "Each game must have non-negative homeScore and awayScore" },
+          { error: `每局比分必须是 0 到 ${MAX_GAME_SCORE} 之间的整数` },
           { status: 400 }
         );
       }
@@ -135,121 +180,93 @@ export async function POST(
       });
     }
 
-    // Delete existing games for this match
-    await db.delete(matchGames)
-      .where(eq(matchGames.matchId, matchId))
-      .run();
-
-    // Delete existing referee records for this match
-    await db.delete(refereeRecords)
-      .where(eq(refereeRecords.matchId, matchId))
-      .run();
-
-    // Insert games and calculate winners
+    // Compute game winners in memory, then apply every write as ONE atomic D1
+    // batch. Previously this was a sequence of independent statements, so a
+    // mid-sequence failure could leave the match 'finished' with missing or
+    // partial games; D1 batches are transactional (all-or-nothing).
     let homeWins = 0;
     let awayWins = 0;
-
-    for (let i = 0; i < validatedGames.length; i++) {
-      const { homeScore, awayScore } = validatedGames[i];
+    const gameRows = validatedGames.map((g, i) => {
       let gameWinner: "home" | "away" | null = null;
-
-      if (homeScore > awayScore) {
+      if (g.homeScore > g.awayScore) {
         gameWinner = "home";
         homeWins++;
-      } else if (awayScore > homeScore) {
+      } else if (g.awayScore > g.homeScore) {
         gameWinner = "away";
         awayWins++;
       }
+      return {
+        matchId,
+        gameNumber: i + 1,
+        homeScore: g.homeScore,
+        awayScore: g.awayScore,
+        winner: gameWinner,
+      };
+    });
 
-      await db
-        .insert(matchGames)
-        .values({
-          matchId,
-          gameNumber: i + 1,
-          homeScore,
-          awayScore,
-          winner: gameWinner,
-        })
-        .run();
-    }
-
-    // Query back inserted games
-    const insertedGames = await db
-      .select()
-      .from(matchGames)
-      .where(eq(matchGames.matchId, matchId))
-      .all();
-
-    // Determine overall match winner
+    // Overall match winner (majority of games; tie stays null / draw)
     let matchWinner: "home" | "away" | null = null;
     if (homeWins > awayWins) {
       matchWinner = "home";
     } else if (awayWins > homeWins) {
       matchWinner = "away";
     }
-    // If tied in games, could remain null (draw) or decide by total points
-    // For single-game modes, the game winner is the match winner
 
-    // Update match status and winner
-    await db.update(matches)
-      .set({
-        status: "finished",
-        winner: matchWinner,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(matches.id, matchId))
-      .run();
+    const nowIso = new Date().toISOString();
 
-    // Insert referee records
-    if (refereePlayerId && typeof refereePlayerId === "number") {
-      await db.insert(refereeRecords)
-        .values({
-          matchId,
-          playerId: refereePlayerId,
-          role: "referee",
-        })
-        .run();
-    }
-
-    if (lineJudgePlayerId && typeof lineJudgePlayerId === "number") {
-      await db.insert(refereeRecords)
-        .values({
-          matchId,
-          playerId: lineJudgePlayerId,
-          role: "line_judge",
-        })
-        .run();
-    }
-
-    // Replace the timeline to avoid keeping stale point-by-point data after edits.
-    await db.delete(scoreEvents)
-      .where(eq(scoreEvents.matchId, matchId))
-      .run();
-
-    for (const evt of scoreEventLog) {
-      if (
+    // Only keep well-formed timeline events (skip malformed ones).
+    const validEvents = scoreEventLog.filter(
+      (evt) =>
         typeof evt.gameNumber === "number" &&
         typeof evt.eventOrder === "number" &&
         (evt.scoringSide === "home" || evt.scoringSide === "away") &&
         typeof evt.homeScore === "number" &&
         typeof evt.awayScore === "number"
-      ) {
-        await db.insert(scoreEvents)
-          .values({
-            matchId,
-            gameNumber: evt.gameNumber,
-            eventOrder: evt.eventOrder,
-            scoringSide: evt.scoringSide,
-            homeScore: evt.homeScore,
-            awayScore: evt.awayScore,
-            timestamp:
-              typeof evt.timestamp === "string"
-                ? evt.timestamp
-                : new Date().toISOString(),
-          })
-          .run();
-      }
+    );
+
+    const writes: BatchItem<"sqlite">[] = [
+      db.delete(matchGames).where(eq(matchGames.matchId, matchId)),
+      db.delete(refereeRecords).where(eq(refereeRecords.matchId, matchId)),
+      db.delete(scoreEvents).where(eq(scoreEvents.matchId, matchId)),
+      ...gameRows.map((row) => db.insert(matchGames).values(row)),
+      db
+        .update(matches)
+        .set({ status: "finished", winner: matchWinner, updatedAt: nowIso })
+        .where(eq(matches.id, matchId)),
+    ];
+
+    if (refereePlayerId && typeof refereePlayerId === "number") {
+      writes.push(
+        db.insert(refereeRecords).values({ matchId, playerId: refereePlayerId, role: "referee" })
+      );
     }
+    if (lineJudgePlayerId && typeof lineJudgePlayerId === "number") {
+      writes.push(
+        db.insert(refereeRecords).values({ matchId, playerId: lineJudgePlayerId, role: "line_judge" })
+      );
+    }
+    for (const evt of validEvents) {
+      writes.push(
+        db.insert(scoreEvents).values({
+          matchId,
+          gameNumber: evt.gameNumber as number,
+          eventOrder: evt.eventOrder as number,
+          scoringSide: evt.scoringSide as "home" | "away",
+          homeScore: evt.homeScore as number,
+          awayScore: evt.awayScore as number,
+          timestamp: typeof evt.timestamp === "string" ? evt.timestamp : nowIso,
+        })
+      );
+    }
+
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+
+    // Read back inserted games (after the atomic write) for the response.
+    const insertedGames = await db
+      .select()
+      .from(matchGames)
+      .where(eq(matchGames.matchId, matchId))
+      .all();
 
     return NextResponse.json({
       match: {

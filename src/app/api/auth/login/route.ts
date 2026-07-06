@@ -11,6 +11,11 @@ interface LoginRequestBody {
   password?: unknown;
 }
 
+// A valid bcrypt hash used only to equalize response time when the username
+// does not exist, so login timing cannot be used to enumerate usernames.
+const DUMMY_PASSWORD_HASH =
+  "$2b$10$oVWrt8kuk5dcizHw9RXIjOQc6g/pfehBV14fEYpyvDDq9OgB9bGcq";
+
 export async function POST(request: NextRequest) {
   try {
     const db = getDb();
@@ -32,6 +37,9 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (!user) {
+      // Run a dummy comparison so a missing user takes the same time as a
+      // wrong password (prevents username enumeration via timing).
+      await verifyPassword(password, DUMMY_PASSWORD_HASH);
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }

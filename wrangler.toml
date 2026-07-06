@@ -5,6 +5,12 @@ compatibility_flags = ["nodejs_compat"]
 # Pages configuration
 pages_build_output_dir = ".vercel/output/static"
 
+# REQUIRED SECRET — set before deploying (do NOT commit the value here):
+#   npx wrangler pages secret put JWT_SECRET
+# Must be a strong random string of at least 16 characters. The app refuses to
+# sign or verify auth tokens if JWT_SECRET is unset, so a misconfigured deploy
+# fails closed instead of using a known key.
+
 [[d1_databases]]
 binding = "DB"
 database_name = "shuttle-arena-db"

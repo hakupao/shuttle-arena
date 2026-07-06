@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { tournamentParticipants, tournaments, users, groups } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -21,6 +22,12 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
+    await requireAdmin();
+  } catch {
+    return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
+  }
+
   try {
     const db = getDb();
     const { id } = await params;
@@ -129,10 +136,15 @@ export async function POST(
     const groupCount = tournamentGroups.length;
     const totalPerGroup = tournament.malesPerGroup + tournament.femalesPerGroup;
 
+    // 1) Validate the ENTIRE batch before writing anything, so a bad row late
+    //    in the list can't leave earlier rows already committed (was: partial
+    //    apply + 400). Also enforce integer types (untrusted JSON): a string
+    //    position previously slipped past every range check and corrupted data.
+    const validated: { userId: number; assignedPosition: number; gender: "M" | "F" }[] = [];
     for (const { userId, assignedPosition, gender } of assignments) {
-      if (!userId || !assignedPosition || !gender) {
+      if (!Number.isInteger(userId) || !Number.isInteger(assignedPosition)) {
         return NextResponse.json(
-          { error: "Each assignment needs userId, assignedPosition, gender" },
+          { error: "userId 与 assignedPosition 必须是整数" },
           { status: 400 }
         );
       }
@@ -159,57 +171,69 @@ export async function POST(
         );
       }
 
-      const user = await db
+      validated.push({ userId, assignedPosition, gender });
+    }
+
+    // 2) Every referenced user must exist.
+    const userIds = [...new Set(validated.map((a) => a.userId))];
+    if (userIds.length > 0) {
+      const existingUsers = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.id, userId))
-        .get();
+        .where(inArray(users.id, userIds))
+        .all();
+      const existingUserIds = new Set(existingUsers.map((u) => u.id));
+      const missing = userIds.find((uid) => !existingUserIds.has(uid));
+      if (missing !== undefined) {
+        return NextResponse.json({ error: `用户 ${missing} 不存在` }, { status: 400 });
+      }
+    }
 
-      if (!user) {
+    // 3) Capacity check on the RESULTING distribution (each position <= groupCount),
+    //    computed in memory so it accounts for every move in this batch at once.
+    const currentParticipants = await db
+      .select({ userId: tournamentParticipants.userId, assignedPosition: tournamentParticipants.assignedPosition })
+      .from(tournamentParticipants)
+      .where(eq(tournamentParticipants.tournamentId, tournamentId))
+      .all();
+    const finalUserPosition = new Map<number, number>();
+    for (const p of currentParticipants) finalUserPosition.set(p.userId, p.assignedPosition);
+    for (const a of validated) finalUserPosition.set(a.userId, a.assignedPosition);
+    const positionCount = new Map<number, number>();
+    for (const pos of finalUserPosition.values()) {
+      positionCount.set(pos, (positionCount.get(pos) || 0) + 1);
+    }
+    for (const [pos, count] of positionCount) {
+      if (count > groupCount) {
         return NextResponse.json(
-          { error: `用户 ${userId} 不存在` },
+          { error: `位置 ${pos} 已满（上限 ${groupCount} 人）` },
           { status: 400 }
         );
       }
+    }
 
-      // Check position capacity (max = groupCount)
-      const existingInPosition = (await db
-        .select()
-        .from(tournamentParticipants)
-        .where(
+    // 4) Apply all upserts as ONE atomic batch (all-or-nothing).
+    const writes: BatchItem<"sqlite">[] = [];
+    for (const a of validated) {
+      writes.push(
+        db.delete(tournamentParticipants).where(
           and(
             eq(tournamentParticipants.tournamentId, tournamentId),
-            eq(tournamentParticipants.assignedPosition, assignedPosition)
+            eq(tournamentParticipants.userId, a.userId)
           )
         )
-        .all())
-        .filter((p) => p.userId !== userId);
-
-      if (existingInPosition.length >= groupCount) {
-        return NextResponse.json(
-          { error: `位置 ${assignedPosition} 已满（上限 ${groupCount} 人）` },
-          { status: 400 }
-        );
-      }
-
-      // Upsert: delete existing then insert
-      await db.delete(tournamentParticipants)
-        .where(
-          and(
-            eq(tournamentParticipants.tournamentId, tournamentId),
-            eq(tournamentParticipants.userId, userId)
-          )
-        )
-        .run();
-
-      await db.insert(tournamentParticipants)
-        .values({
+      );
+      writes.push(
+        db.insert(tournamentParticipants).values({
           tournamentId,
-          userId,
-          assignedPosition,
-          gender,
+          userId: a.userId,
+          assignedPosition: a.assignedPosition,
+          gender: a.gender,
         })
-        .run();
+      );
+    }
+    if (writes.length > 0) {
+      await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
     }
 
     return NextResponse.json({ success: true });

@@ -5,9 +5,23 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "shuttle-arena-secret-key-change-in-production"
-);
+// No production fallback secret: a misconfigured production deployment must
+// fail closed rather than sign/verify tokens with a publicly-known key.
+// Resolved lazily (not at module load) so the edge build, which evaluates
+// modules without request env, doesn't crash. Outside production a local-only
+// fallback keeps `next dev` working without extra setup.
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (secret && secret.length >= 16) {
+    return new TextEncoder().encode(secret);
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_SECRET is not configured (must be set and at least 16 characters). Refusing to sign or verify tokens in production."
+    );
+  }
+  return new TextEncoder().encode("dev-only-insecure-secret-not-for-production");
+}
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hashSync(password, 10);
@@ -21,12 +35,12 @@ export async function createToken(userId: number, role: string): Promise<string>
   return new SignJWT({ userId, role })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+    .sign(getJwtSecret());
 }
 
 async function verifyToken(token: string) {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     return payload as { userId: number; role: string };
   } catch {
     return null;

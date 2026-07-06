@@ -16,7 +16,8 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { buildDefaultTemplate, getDefaultTeam } from "@/lib/constants";
 import type { ScoringMode } from "@/lib/constants";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -39,48 +40,43 @@ interface UpdateTournamentRequestBody {
   status?: "draft" | "active" | "finished" | "archived";
 }
 
-async function deleteTournamentMatches(db: ReturnType<typeof getDb>, tournamentId: number) {
-  const tournamentMatches = await db
-    .select()
-    .from(matches)
-    .where(eq(matches.tournamentId, tournamentId))
-    .all();
-
-  for (const match of tournamentMatches) {
-    await db.delete(scoreEvents).where(eq(scoreEvents.matchId, match.id)).run();
-    await db.delete(refereeRecords).where(eq(refereeRecords.matchId, match.id)).run();
-    await db.delete(matchGames).where(eq(matchGames.matchId, match.id)).run();
-  }
-
-  if (tournamentMatches.length > 0) {
-    await db.delete(matches).where(eq(matches.tournamentId, tournamentId)).run();
-  }
-}
-
-async function deleteTournamentDependencies(
+// Build (not execute) the statements that delete a tournament's matches and
+// their dependent records. Subqueries avoid a huge IN-list that would blow past
+// D1's per-query bound-parameter limit. Callers run these inside a db.batch so
+// the whole cascade is atomic (all-or-nothing).
+function matchDeleteStatements(
   db: ReturnType<typeof getDb>,
   tournamentId: number
-) {
-  await deleteTournamentMatches(db, tournamentId);
+): BatchItem<"sqlite">[] {
+  const matchIds = db
+    .select({ id: matches.id })
+    .from(matches)
+    .where(eq(matches.tournamentId, tournamentId));
+  return [
+    db.delete(scoreEvents).where(inArray(scoreEvents.matchId, matchIds)),
+    db.delete(refereeRecords).where(inArray(refereeRecords.matchId, matchIds)),
+    db.delete(matchGames).where(inArray(matchGames.matchId, matchIds)),
+    db.delete(matches).where(eq(matches.tournamentId, tournamentId)),
+  ];
+}
 
-  const tournamentPlayers = await db
+function dependencyDeleteStatements(
+  db: ReturnType<typeof getDb>,
+  tournamentId: number
+): BatchItem<"sqlite">[] {
+  const playerIds = db
     .select({ id: players.id })
     .from(players)
-    .where(eq(players.tournamentId, tournamentId))
-    .all();
-
-  for (const player of tournamentPlayers) {
-    await db.update(users).set({ playerId: null }).where(eq(users.playerId, player.id)).run();
-  }
-
-  await db
-    .delete(tournamentParticipants)
-    .where(eq(tournamentParticipants.tournamentId, tournamentId))
-    .run();
-  await db.delete(players).where(eq(players.tournamentId, tournamentId)).run();
-  await db.delete(groups).where(eq(groups.tournamentId, tournamentId)).run();
-  await db.delete(templateMatches).where(eq(templateMatches.tournamentId, tournamentId)).run();
-  await db.delete(templatePositions).where(eq(templatePositions.tournamentId, tournamentId)).run();
+    .where(eq(players.tournamentId, tournamentId));
+  return [
+    ...matchDeleteStatements(db, tournamentId),
+    db.update(users).set({ playerId: null }).where(inArray(users.playerId, playerIds)),
+    db.delete(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, tournamentId)),
+    db.delete(players).where(eq(players.tournamentId, tournamentId)),
+    db.delete(groups).where(eq(groups.tournamentId, tournamentId)),
+    db.delete(templateMatches).where(eq(templateMatches.tournamentId, tournamentId)),
+    db.delete(templatePositions).where(eq(templatePositions.tournamentId, tournamentId)),
+  ];
 }
 
 export async function GET(
@@ -300,45 +296,48 @@ export async function PUT(
       existing.femalesPerGroup !== nextFemalesPerGroup;
 
     if (groupCountChanged || rosterShapeChanged) {
-      await deleteTournamentMatches(db, tournamentId);
+      const totalPerGroup = nextMalesPerGroup + nextFemalesPerGroup;
 
+      // Phase 1 (atomic): delete matches + players (and participants/groups when
+      // applicable), and recreate the groups when the group count changes.
+      // Groups must be inserted here so their auto-generated ids exist before we
+      // insert players that reference them (D1 batches can't read ids mid-batch).
+      const phase1: BatchItem<"sqlite">[] = [...matchDeleteStatements(db, tournamentId)];
       if (rosterShapeChanged) {
-        await db
-          .delete(tournamentParticipants)
-          .where(eq(tournamentParticipants.tournamentId, tournamentId))
-          .run();
+        phase1.push(
+          db.delete(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, tournamentId))
+        );
       }
-
-      const tournamentPlayers = await db
-        .select()
-        .from(players)
-        .where(eq(players.tournamentId, tournamentId))
-        .all();
-      for (const player of tournamentPlayers) {
-        await db.update(users).set({ playerId: null }).where(eq(users.playerId, player.id)).run();
-      }
-
-      await db.delete(players).where(eq(players.tournamentId, tournamentId)).run();
+      phase1.push(
+        db.update(users).set({ playerId: null }).where(
+          inArray(
+            users.playerId,
+            db.select({ id: players.id }).from(players).where(eq(players.tournamentId, tournamentId))
+          )
+        ),
+        db.delete(players).where(eq(players.tournamentId, tournamentId))
+      );
 
       let groupsForPlayers = currentGroups;
       if (groupCountChanged) {
-        await db.delete(groups).where(eq(groups.tournamentId, tournamentId)).run();
-
+        phase1.push(db.delete(groups).where(eq(groups.tournamentId, tournamentId)));
         for (let i = 0; i < nextGroupCount; i++) {
           const existingGroup = currentGroups[i];
           const fallbackTeam = getDefaultTeam(i);
-
-          await db
-            .insert(groups)
-            .values({
+          phase1.push(
+            db.insert(groups).values({
               tournamentId,
               name: existingGroup?.name || fallbackTeam.name,
               icon: existingGroup?.icon || fallbackTeam.icon,
               sortOrder: i,
             })
-            .run();
+          );
         }
+      }
 
+      await db.batch(phase1 as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+
+      if (groupCountChanged) {
         groupsForPlayers = (await db
           .select()
           .from(groups)
@@ -347,42 +346,45 @@ export async function PUT(
           .sort((a, b) => a.sortOrder - b.sortOrder);
       }
 
-      const totalPerGroup = nextMalesPerGroup + nextFemalesPerGroup;
+      // Phase 2 (atomic): insert players for the now-known group ids, plus the
+      // default template when the roster shape changed. Player inserts are
+      // chunked so no single INSERT exceeds D1's per-query bound-parameter limit.
+      const playerRows: { tournamentId: number; groupId: number; positionNumber: number; gender: "M" | "F" }[] = [];
       for (const group of groupsForPlayers) {
         for (let position = 1; position <= totalPerGroup; position++) {
-          await db
-            .insert(players)
-            .values({
-              tournamentId,
-              groupId: group.id,
-              positionNumber: position,
-              gender: position <= nextMalesPerGroup ? "M" : "F",
-            })
-            .run();
+          playerRows.push({
+            tournamentId,
+            groupId: group.id,
+            positionNumber: position,
+            gender: position <= nextMalesPerGroup ? "M" : "F",
+          });
         }
+      }
+
+      const phase2: BatchItem<"sqlite">[] = [];
+      const PLAYER_CHUNK = 20; // 20 rows x 4 cols = 80 bound params, under D1's 100 limit
+      for (let i = 0; i < playerRows.length; i += PLAYER_CHUNK) {
+        phase2.push(db.insert(players).values(playerRows.slice(i, i + PLAYER_CHUNK)));
       }
 
       if (rosterShapeChanged) {
         const defaultTemplate = buildDefaultTemplate(nextMalesPerGroup, nextFemalesPerGroup);
-
-        await db.delete(templateMatches).where(eq(templateMatches.tournamentId, tournamentId)).run();
-        await db.delete(templatePositions).where(eq(templatePositions.tournamentId, tournamentId)).run();
-
+        phase2.push(
+          db.delete(templateMatches).where(eq(templateMatches.tournamentId, tournamentId)),
+          db.delete(templatePositions).where(eq(templatePositions.tournamentId, tournamentId))
+        );
         for (const position of defaultTemplate.positions) {
-          await db
-            .insert(templatePositions)
-            .values({
+          phase2.push(
+            db.insert(templatePositions).values({
               tournamentId,
               positionNumber: position.positionNumber,
               gender: position.gender,
             })
-            .run();
+          );
         }
-
         for (const match of defaultTemplate.matches) {
-          await db
-            .insert(templateMatches)
-            .values({
+          phase2.push(
+            db.insert(templateMatches).values({
               tournamentId,
               matchType: match.matchType,
               homePos1: match.homePos1,
@@ -391,8 +393,12 @@ export async function PUT(
               awayPos2: match.awayPos2,
               sortOrder: match.sortOrder,
             })
-            .run();
+          );
         }
+      }
+
+      if (phase2.length > 0) {
+        await db.batch(phase2 as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
       }
     }
 
@@ -438,8 +444,11 @@ export async function DELETE(
       return NextResponse.json({ error: "赛事已归档，不能删除" }, { status: 403 });
     }
 
-    await deleteTournamentDependencies(db, tournamentId);
-    await db.delete(tournaments).where(eq(tournaments.id, tournamentId)).run();
+    const deleteWrites: BatchItem<"sqlite">[] = [
+      ...dependencyDeleteStatements(db, tournamentId),
+      db.delete(tournaments).where(eq(tournaments.id, tournamentId)),
+    ];
+    await db.batch(deleteWrites as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

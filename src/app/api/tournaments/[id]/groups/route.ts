@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { groups, players, users, tournaments } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
 export const runtime = 'edge';
@@ -50,6 +50,11 @@ export async function GET(
       .where(eq(players.tournamentId, tournamentId))
       .all();
 
+    // Only admins may see user roles; anonymous/non-admin callers must not be
+    // able to enumerate which accounts are admins (brute-force target reduction).
+    const viewer = await getCurrentUser();
+    const isAdmin = viewer?.role === "admin";
+
     // Get all users with playerId set to find bindings
     const allUsers = await db
       .select({
@@ -62,7 +67,12 @@ export async function GET(
       .all();
 
     const userByPlayerId = new Map(
-      allUsers.filter((u) => u.playerId).map((u) => [u.playerId, u])
+      allUsers
+        .filter((u) => u.playerId)
+        .map((u) => [
+          u.playerId,
+          isAdmin ? u : { id: u.id, username: u.username, playerId: u.playerId },
+        ])
     );
 
     // Group players by groupId

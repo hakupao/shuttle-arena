@@ -63,8 +63,8 @@ export default function AccountPage() {
       return;
     }
 
-    if (passwordChanged && newPassword.length < 4) {
-      toast.error("新密码至少 4 位");
+    if (passwordChanged && newPassword.length < 8) {
+      toast.error("新密码至少 8 位");
       return;
     }
 

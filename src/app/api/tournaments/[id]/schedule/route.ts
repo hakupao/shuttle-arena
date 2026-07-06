@@ -13,7 +13,8 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { generateMatches, scheduleMatches, generateTimeSlots } from "@/lib/engine";
 import type { SimulationParams } from "@/lib/engine";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 export const runtime = 'edge';
 
@@ -310,23 +311,6 @@ export async function POST(
       }
     }
 
-    // Delete existing matches and dependent records for this tournament
-    const existingMatches = await db
-      .select()
-      .from(matches)
-      .where(eq(matches.tournamentId, tournamentId))
-      .all();
-
-    for (const m of existingMatches) {
-      await db.delete(scoreEvents).where(eq(scoreEvents.matchId, m.id)).run();
-      await db.delete(matchGames).where(eq(matchGames.matchId, m.id)).run();
-      await db.delete(refereeRecords).where(eq(refereeRecords.matchId, m.id)).run();
-    }
-
-    await db.delete(matches)
-      .where(eq(matches.tournamentId, tournamentId))
-      .run();
-
     // Generate and schedule matches
     const scheduled = providedSchedule ?? (() => {
       const simParams: SimulationParams = {
@@ -359,35 +343,44 @@ export async function POST(
       ) || null;
     };
 
-    // Insert matches with actual player references
-    for (const sm of scheduled) {
-      const homeGroup = tournamentGroups[sm.homeGroupIndex];
-      const awayGroup = tournamentGroups[sm.awayGroupIndex];
+    // Build the new match rows in memory (all references are pre-existing ids).
+    const matchRows = scheduled.map((sm) => ({
+      tournamentId,
+      roundNumber: sm.roundNumber,
+      courtNumber: sm.courtNumber,
+      homeGroupId: tournamentGroups[sm.homeGroupIndex].id,
+      awayGroupId: tournamentGroups[sm.awayGroupIndex].id,
+      templateMatchId: templates[sm.templateIndex]?.id || null,
+      matchType: sm.matchType,
+      homePlayer1Id: findPlayer(sm.homeGroupIndex, sm.homePos1)?.id || null,
+      homePlayer2Id: findPlayer(sm.homeGroupIndex, sm.homePos2)?.id || null,
+      awayPlayer1Id: findPlayer(sm.awayGroupIndex, sm.awayPos1)?.id || null,
+      awayPlayer2Id: findPlayer(sm.awayGroupIndex, sm.awayPos2)?.id || null,
+    }));
 
-      const homePlayer1 = findPlayer(sm.homeGroupIndex, sm.homePos1);
-      const homePlayer2 = findPlayer(sm.homeGroupIndex, sm.homePos2);
-      const awayPlayer1 = findPlayer(sm.awayGroupIndex, sm.awayPos1);
-      const awayPlayer2 = findPlayer(sm.awayGroupIndex, sm.awayPos2);
+    // Apply the whole republish as ONE atomic D1 batch: delete old matches and
+    // their dependent records, then insert the new schedule. Previously these
+    // ran as independent statements with no transaction, so a mid-operation
+    // failure permanently lost all recorded results and left a partial schedule.
+    // Deletes use a subquery (not a huge IN list) to stay within D1's per-query
+    // bound-parameter limit; inserts are chunked so no single INSERT exceeds it.
+    const matchIdsForTournament = db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(eq(matches.tournamentId, tournamentId));
 
-      const templateMatch = templates[sm.templateIndex] || null;
-
-      await db
-        .insert(matches)
-        .values({
-          tournamentId,
-          roundNumber: sm.roundNumber,
-          courtNumber: sm.courtNumber,
-          homeGroupId: homeGroup.id,
-          awayGroupId: awayGroup.id,
-          templateMatchId: templateMatch?.id || null,
-          matchType: sm.matchType,
-          homePlayer1Id: homePlayer1?.id || null,
-          homePlayer2Id: homePlayer2?.id || null,
-          awayPlayer1Id: awayPlayer1?.id || null,
-          awayPlayer2Id: awayPlayer2?.id || null,
-        })
-        .run();
+    const writes: BatchItem<"sqlite">[] = [
+      db.delete(scoreEvents).where(inArray(scoreEvents.matchId, matchIdsForTournament)),
+      db.delete(matchGames).where(inArray(matchGames.matchId, matchIdsForTournament)),
+      db.delete(refereeRecords).where(inArray(refereeRecords.matchId, matchIdsForTournament)),
+      db.delete(matches).where(eq(matches.tournamentId, tournamentId)),
+    ];
+    const INSERT_CHUNK = 8; // 8 rows x 11 cols = 88 bound params, under D1's 100 limit
+    for (let i = 0; i < matchRows.length; i += INSERT_CHUNK) {
+      writes.push(db.insert(matches).values(matchRows.slice(i, i + INSERT_CHUNK)));
     }
+
+    await db.batch(writes as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
 
     // Query back inserted matches
     const insertedMatches = await db

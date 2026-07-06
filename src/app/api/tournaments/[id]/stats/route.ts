@@ -193,8 +193,11 @@ export async function GET(
     // the team winning more matches wins the encounter and gets 3 points.
     // In scheduling, the same pair's matches get consecutive roundNumbers
     // (e.g. 1,2,3,4,5), with gaps between different cycles.
-    const pairMatchesMap = new Map<string, typeof finishedMatches>();
-    for (const m of finishedMatches) {
+    // Build encounters from ALL matches of a pair (finished or not) so that an
+    // unfinished match in the middle of a BO-N encounter does NOT split one
+    // encounter into two — which previously double-awarded encounter points.
+    const pairMatchesMap = new Map<string, typeof allMatches>();
+    for (const m of allMatches) {
       const [minId, maxId] = m.homeGroupId < m.awayGroupId
         ? [m.homeGroupId, m.awayGroupId]
         : [m.awayGroupId, m.homeGroupId];
@@ -208,7 +211,7 @@ export async function GET(
     }
 
     // Split each pair's matches into encounters by detecting round gaps
-    const allEncounters: (typeof finishedMatches)[] = [];
+    const allEncounters: (typeof allMatches)[] = [];
     for (const pairMatches of pairMatchesMap.values()) {
       pairMatches.sort((a, b) => a.roundNumber - b.roundNumber);
       let encounter = [pairMatches[0]];
@@ -227,10 +230,16 @@ export async function GET(
       // Accumulate score points and match wins per group
       const matchWins = new Map<number, number>();
       const groupIds = new Set<number>();
+      // Encounter points are only awarded once every match in it is finished,
+      // so a partially-played encounter never contributes (or flips) 3/1 points.
+      const encounterComplete = encounterMatches.every((m) => m.status === "finished");
 
       for (const m of encounterMatches) {
         groupIds.add(m.homeGroupId);
         groupIds.add(m.awayGroupId);
+
+        // Per-match stats only count finished matches.
+        if (m.status !== "finished") continue;
 
         const homeStanding = standingMap.get(m.homeGroupId);
         const awayStanding = standingMap.get(m.awayGroupId);
@@ -277,7 +286,9 @@ export async function GET(
       standingB.gamesWon += bMatchWins;
       standingB.gamesLost += aMatchWins;
 
-      // Points are awarded per encounter (BO5), not per match
+      // Points are awarded per encounter (BO5), not per match — and only once
+      // the whole encounter is decided.
+      if (!encounterComplete) continue;
       if (aMatchWins > bMatchWins) {
         standingA.points += 3;
       } else if (bMatchWins > aMatchWins) {

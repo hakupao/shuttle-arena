@@ -69,8 +69,8 @@ export default function LoginPage() {
       setRegError("两次输入的密码不一致");
       return;
     }
-    if (regPassword.length < 4) {
-      setRegError("密码至少 4 位");
+    if (regPassword.length < 8) {
+      setRegError("密码至少 8 位");
       return;
     }
     if (regUsername.trim().length < 2) {
@@ -220,7 +220,7 @@ export default function LoginPage() {
                         type="password"
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="至少 4 位"
+                        placeholder="至少 8 位"
                         className="h-11 border-gray-200 focus:border-teal-400 focus:ring-teal-400/30 transition-colors"
                         required
                       />
