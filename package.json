@@ -9,6 +9,7 @@
     "build": "cross-env NEXT_TELEMETRY_DISABLED=1 next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
     "build:cf": "cross-env NEXT_TELEMETRY_DISABLED=1 VERCEL_TELEMETRY_DISABLED=1 npx @cloudflare/next-on-pages",
     "preview:cf": "npx wrangler pages dev .vercel/output/static",
     "deploy": "npm run build:cf && npx wrangler pages deploy .vercel/output/static",
@@ -17,6 +18,7 @@
     "d1:init:demo": "npx wrangler d1 execute shuttle-arena-demo-db --remote --file=schema.sql",
     "d1:init:local": "npx wrangler d1 execute shuttle-arena-db --local --file=schema.sql",
     "d1:migrate:archived": "npx wrangler d1 execute shuttle-arena-db --remote --file=scripts/migrate-add-archived-status.sql",
+    "d1:migrate:constraints": "npx wrangler d1 execute shuttle-arena-db --remote --file=migrations/003_add_unique_constraints.sql",
     "db:seed:sqlite": "tsx src/db/seed.ts",
     "d1:seed:demo": "npx wrangler d1 execute shuttle-arena-demo-db --remote --file=scripts/seed-demo.sql",
     "d1:seed:local": "npx wrangler d1 execute shuttle-arena-db --local --file=scripts/seed-local-d1.sql"
@@ -56,6 +58,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
+    "vitest": "^4.1.10",
     "wrangler": "^4.73.0"
   }
 }

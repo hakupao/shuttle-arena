@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'athlete' CHECK(role IN ('admin', 'athlete')),
-  player_id INTEGER REFERENCES players(id),
+  player_id INTEGER UNIQUE REFERENCES players(id),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS players (
   slot_index INTEGER NOT NULL DEFAULT 1,
   gender TEXT NOT NULL CHECK(gender IN ('M', 'F')),
   name TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(group_id, position_number, slot_index)
 );
 
 CREATE TABLE IF NOT EXISTS template_positions (
@@ -90,7 +91,8 @@ CREATE TABLE IF NOT EXISTS match_games (
   game_number INTEGER NOT NULL,
   home_score INTEGER NOT NULL DEFAULT 0,
   away_score INTEGER NOT NULL DEFAULT 0,
-  winner TEXT CHECK(winner IN ('home', 'away'))
+  winner TEXT CHECK(winner IN ('home', 'away')),
+  UNIQUE(match_id, game_number)
 );
 
 CREATE TABLE IF NOT EXISTS referee_records (
@@ -118,7 +120,8 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
   user_id INTEGER NOT NULL REFERENCES users(id),
   assigned_position INTEGER NOT NULL,
   gender TEXT NOT NULL CHECK(gender IN ('M', 'F')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(tournament_id, user_id)
 );
 
 -- Default admin account (password: admin123)

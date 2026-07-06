@@ -9,25 +9,9 @@ import {
   refereeRecords,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { computeGroupStandings } from "@/lib/standings";
 
 export const runtime = 'edge';
-
-interface GroupStanding {
-  groupId: number;
-  groupName: string;
-  groupIcon: string;
-  wins: number;
-  draws: number;
-  losses: number;
-  points: number; // win=3, draw=1, loss=0
-  matchesPlayed: number;
-  gamesWon: number;
-  gamesLost: number;
-  netGames: number;
-  pointsFor: number;
-  pointsAgainst: number;
-  netPoints: number;
-}
 
 interface PlayerStat {
   playerId: number;
@@ -169,146 +153,8 @@ export async function GET(
     // ========== Group Standings ==========
     const groupMap = new Map(allGroups.map((g) => [g.id, g]));
 
-    const groupStandings: GroupStanding[] = allGroups.map((g) => ({
-      groupId: g.id,
-      groupName: g.name,
-      groupIcon: g.icon,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      points: 0,
-      matchesPlayed: 0,
-      gamesWon: 0,
-      gamesLost: 0,
-      netGames: 0,
-      pointsFor: 0,
-      pointsAgainst: 0,
-      netPoints: 0,
-    }));
-
-    const standingMap = new Map(groupStandings.map((s) => [s.groupId, s]));
-
-    // Group matches into encounters (same team pair + consecutive roundNumbers).
-    // An encounter is one "对阵": two teams play multiple matches (e.g. BO5),
-    // the team winning more matches wins the encounter and gets 3 points.
-    // In scheduling, the same pair's matches get consecutive roundNumbers
-    // (e.g. 1,2,3,4,5), with gaps between different cycles.
-    // Build encounters from ALL matches of a pair (finished or not) so that an
-    // unfinished match in the middle of a BO-N encounter does NOT split one
-    // encounter into two — which previously double-awarded encounter points.
-    const pairMatchesMap = new Map<string, typeof allMatches>();
-    for (const m of allMatches) {
-      const [minId, maxId] = m.homeGroupId < m.awayGroupId
-        ? [m.homeGroupId, m.awayGroupId]
-        : [m.awayGroupId, m.homeGroupId];
-      const key = `${minId}-${maxId}`;
-      let arr = pairMatchesMap.get(key);
-      if (!arr) {
-        arr = [];
-        pairMatchesMap.set(key, arr);
-      }
-      arr.push(m);
-    }
-
-    // Split each pair's matches into encounters by detecting round gaps
-    const allEncounters: (typeof allMatches)[] = [];
-    for (const pairMatches of pairMatchesMap.values()) {
-      pairMatches.sort((a, b) => a.roundNumber - b.roundNumber);
-      let encounter = [pairMatches[0]];
-      for (let i = 1; i < pairMatches.length; i++) {
-        if (pairMatches[i].roundNumber - pairMatches[i - 1].roundNumber <= 1) {
-          encounter.push(pairMatches[i]);
-        } else {
-          allEncounters.push(encounter);
-          encounter = [pairMatches[i]];
-        }
-      }
-      allEncounters.push(encounter);
-    }
-
-    for (const encounterMatches of allEncounters) {
-      // Accumulate score points and match wins per group
-      const matchWins = new Map<number, number>();
-      const groupIds = new Set<number>();
-      // Encounter points are only awarded once every match in it is finished,
-      // so a partially-played encounter never contributes (or flips) 3/1 points.
-      const encounterComplete = encounterMatches.every((m) => m.status === "finished");
-
-      for (const m of encounterMatches) {
-        groupIds.add(m.homeGroupId);
-        groupIds.add(m.awayGroupId);
-
-        // Per-match stats only count finished matches.
-        if (m.status !== "finished") continue;
-
-        const homeStanding = standingMap.get(m.homeGroupId);
-        const awayStanding = standingMap.get(m.awayGroupId);
-        if (!homeStanding || !awayStanding) continue;
-
-        homeStanding.matchesPlayed++;
-        awayStanding.matchesPlayed++;
-
-        // Accumulate score points from individual games
-        const matchGamesList = gamesByMatch.get(m.id) || [];
-        for (const g of matchGamesList) {
-          homeStanding.pointsFor += g.homeScore;
-          homeStanding.pointsAgainst += g.awayScore;
-          awayStanding.pointsFor += g.awayScore;
-          awayStanding.pointsAgainst += g.homeScore;
-        }
-
-        // Count per-match wins/losses/draws (individual match record)
-        if (m.winner === "home") {
-          homeStanding.wins++;
-          awayStanding.losses++;
-          matchWins.set(m.homeGroupId, (matchWins.get(m.homeGroupId) || 0) + 1);
-        } else if (m.winner === "away") {
-          awayStanding.wins++;
-          homeStanding.losses++;
-          matchWins.set(m.awayGroupId, (matchWins.get(m.awayGroupId) || 0) + 1);
-        } else {
-          homeStanding.draws++;
-          awayStanding.draws++;
-        }
-      }
-
-      // Determine encounter result
-      const [groupAId, groupBId] = [...groupIds];
-      const standingA = standingMap.get(groupAId);
-      const standingB = standingMap.get(groupBId);
-      if (!standingA || !standingB) continue;
-
-      const aMatchWins = matchWins.get(groupAId) || 0;
-      const bMatchWins = matchWins.get(groupBId) || 0;
-
-      standingA.gamesWon += aMatchWins;
-      standingA.gamesLost += bMatchWins;
-      standingB.gamesWon += bMatchWins;
-      standingB.gamesLost += aMatchWins;
-
-      // Points are awarded per encounter (BO5), not per match — and only once
-      // the whole encounter is decided.
-      if (!encounterComplete) continue;
-      if (aMatchWins > bMatchWins) {
-        standingA.points += 3;
-      } else if (bMatchWins > aMatchWins) {
-        standingB.points += 3;
-      } else {
-        standingA.points += 1;
-        standingB.points += 1;
-      }
-    }
-
-    // Calculate net values
-    for (const s of groupStandings) {
-      s.netGames = s.gamesWon - s.gamesLost;
-      s.netPoints = s.pointsFor - s.pointsAgainst;
-    }
-
-    // Sort by points desc, then netGames desc, then netPoints desc
-    groupStandings.sort((a, b) =>
-      b.points - a.points || b.netGames - a.netGames || b.netPoints - a.netPoints
-    );
+    // Encounter grouping + points live in a pure, unit-tested function.
+    const groupStandings = computeGroupStandings(allGroups, allMatches, gamesByMatch);
 
     // ========== Player Stats ==========
     const playerMap = new Map(allPlayers.map((p) => [p.id, p]));

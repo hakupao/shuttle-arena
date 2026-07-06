@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, unique } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ========== 用户账号 ==========
@@ -7,7 +7,7 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: ["admin", "athlete"] }).notNull().default("athlete"),
-  playerId: integer("player_id").references(() => players.id),
+  playerId: integer("player_id").references(() => players.id).unique(),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 
@@ -51,7 +51,11 @@ export const players = sqliteTable("players", {
   gender: text("gender", { enum: ["M", "F"] }).notNull(),
   name: text("name"), // 真名，抽签后填入
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => [
+  // At most one player per (group, position, slot) — backs the app-level checks
+  // in lottery / alternate creation that races could otherwise bypass.
+  unique().on(t.groupId, t.positionNumber, t.slotIndex),
+]);
 
 // ========== 比赛模板 - 位置定义 ==========
 export const templatePositions = sqliteTable("template_positions", {
@@ -101,7 +105,11 @@ export const matchGames = sqliteTable("match_games", {
   homeScore: integer("home_score").notNull().default(0),
   awayScore: integer("away_score").notNull().default(0),
   winner: text("winner", { enum: ["home", "away"] }),
-});
+}, (t) => [
+  // One row per (match, game) — prevents duplicate/contradictory game rows from
+  // concurrent or interrupted score submissions.
+  unique().on(t.matchId, t.gameNumber),
+]);
 
 // ========== 裁判志愿记录 ==========
 export const refereeRecords = sqliteTable("referee_records", {
@@ -132,7 +140,10 @@ export const tournamentParticipants = sqliteTable("tournament_participants", {
   assignedPosition: integer("assigned_position").notNull(), // 技术位置 1-n
   gender: text("gender", { enum: ["M", "F"] }).notNull(),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => [
+  // One registration per user per tournament — backs the delete+insert upsert.
+  unique().on(t.tournamentId, t.userId),
+]);
 
 // ========== 类型导出 ==========
 export type User = typeof users.$inferSelect;

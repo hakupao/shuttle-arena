@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { matches, matchGames, refereeRecords, scoreEvents, tournaments } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { SCORING_MODES, type ScoringMode } from "@/lib/constants";
+import { buildScoredGames, MAX_SCORE_EVENTS } from "@/lib/score-validation";
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
@@ -27,11 +28,6 @@ interface ScoreRequestBody {
   refereePlayerId?: unknown;
   lineJudgePlayerId?: unknown;
   scoreEventLog?: ScoreEventInput[];
-}
-
-interface ValidatedScoreGame {
-  homeScore: number;
-  awayScore: number;
 }
 
 export async function POST(
@@ -98,27 +94,9 @@ export async function POST(
       typeof body.lineJudgePlayerId === "number" ? body.lineJudgePlayerId : undefined;
     const scoreEventLog = Array.isArray(body.scoreEventLog) ? body.scoreEventLog : [];
 
-    if (!Array.isArray(games) || games.length === 0) {
-      return NextResponse.json(
-        { error: "games must be a non-empty array of {homeScore, awayScore}" },
-        { status: 400 }
-      );
-    }
-
-    // Server-side score sanity limits (client is not trusted): bound the number
-    // of games to the tournament's scoring mode, cap per-game scores to block
-    // absurd/Infinity values from poisoning standings, and cap the timeline.
+    // Scoring mode governs how many games are allowed and the score bounds.
     const scoringMode = (tournament?.scoringMode || "single_21") as ScoringMode;
     const scoringInfo = SCORING_MODES[scoringMode] ?? SCORING_MODES.single_21;
-    const MAX_GAME_SCORE = 60; // real badminton tops out ~30; 60 is a safe ceiling
-    const MAX_SCORE_EVENTS = 2000;
-
-    if (games.length > scoringInfo.games) {
-      return NextResponse.json(
-        { error: `本赛制最多 ${scoringInfo.games} 局，收到 ${games.length} 局` },
-        { status: 400 }
-      );
-    }
 
     if (scoreEventLog.length > MAX_SCORE_EVENTS) {
       return NextResponse.json(
@@ -154,64 +132,18 @@ export async function POST(
       }
     }
 
-    const validatedGames: ValidatedScoreGame[] = [];
-
-    // Validate each game
-    for (const game of games) {
-      if (
-        typeof game.homeScore !== "number" ||
-        typeof game.awayScore !== "number" ||
-        !Number.isInteger(game.homeScore) ||
-        !Number.isInteger(game.awayScore) ||
-        game.homeScore < 0 ||
-        game.awayScore < 0 ||
-        game.homeScore > MAX_GAME_SCORE ||
-        game.awayScore > MAX_GAME_SCORE
-      ) {
-        return NextResponse.json(
-          { error: `每局比分必须是 0 到 ${MAX_GAME_SCORE} 之间的整数` },
-          { status: 400 }
-        );
-      }
-
-      validatedGames.push({
-        homeScore: game.homeScore,
-        awayScore: game.awayScore,
-      });
+    // Validate scores + derive per-game and match winners. Pure and unit-tested
+    // in score-validation.test.ts.
+    const scored = buildScoredGames(games, scoringInfo.games);
+    if (!scored.ok) {
+      return NextResponse.json({ error: scored.error }, { status: 400 });
     }
+    const gameRows = scored.gameRows;
+    const matchWinner = scored.matchWinner;
 
-    // Compute game winners in memory, then apply every write as ONE atomic D1
-    // batch. Previously this was a sequence of independent statements, so a
-    // mid-sequence failure could leave the match 'finished' with missing or
-    // partial games; D1 batches are transactional (all-or-nothing).
-    let homeWins = 0;
-    let awayWins = 0;
-    const gameRows = validatedGames.map((g, i) => {
-      let gameWinner: "home" | "away" | null = null;
-      if (g.homeScore > g.awayScore) {
-        gameWinner = "home";
-        homeWins++;
-      } else if (g.awayScore > g.homeScore) {
-        gameWinner = "away";
-        awayWins++;
-      }
-      return {
-        matchId,
-        gameNumber: i + 1,
-        homeScore: g.homeScore,
-        awayScore: g.awayScore,
-        winner: gameWinner,
-      };
-    });
-
-    // Overall match winner (majority of games; tie stays null / draw)
-    let matchWinner: "home" | "away" | null = null;
-    if (homeWins > awayWins) {
-      matchWinner = "home";
-    } else if (awayWins > homeWins) {
-      matchWinner = "away";
-    }
-
+    // Apply every write as ONE atomic D1 batch. Previously this was a sequence of
+    // independent statements, so a mid-sequence failure could leave the match
+    // 'finished' with missing or partial games; D1 batches are transactional.
     const nowIso = new Date().toISOString();
 
     // Only keep well-formed timeline events (skip malformed ones).
@@ -228,7 +160,7 @@ export async function POST(
       db.delete(matchGames).where(eq(matchGames.matchId, matchId)),
       db.delete(refereeRecords).where(eq(refereeRecords.matchId, matchId)),
       db.delete(scoreEvents).where(eq(scoreEvents.matchId, matchId)),
-      ...gameRows.map((row) => db.insert(matchGames).values(row)),
+      ...gameRows.map((row) => db.insert(matchGames).values({ matchId, ...row })),
       db
         .update(matches)
         .set({ status: "finished", winner: matchWinner, updatedAt: nowIso })
