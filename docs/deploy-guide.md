@@ -110,6 +110,13 @@ npx wrangler d1 execute shuttle-arena-db --remote --file=schema.sql
 npx wrangler d1 execute shuttle-arena-db --remote --command="SELECT name FROM sqlite_master WHERE type='table'"
 ```
 
+> **存量数据库需补跑迁移。** `schema.sql` 已包含全部表、UNIQUE 约束和 `login_attempts` 限速表，全新库跑 `d1:init` 即可。但 `d1:init` 用的是 `CREATE TABLE IF NOT EXISTS`，**不会**修改已存在的表；如果你的正式站数据库是在这些改动之前建的，需要额外执行：
+>
+> ```bash
+> npm run d1:migrate:constraints   # 补 UNIQUE 约束（match_games / participants / players / users.player_id，会先去重）
+> npm run d1:migrate:ratelimit     # 补 login_attempts 限速表
+> ```
+
 ### 第四步：首次部署 Pages 项目
 
 如果你还没有正式站 Pages 项目，最简单的方式是先跑一次命令行部署：
@@ -142,7 +149,13 @@ npm run deploy
 
 | 变量名 | 是否必需 | 说明 |
 | --- | --- | --- |
-| `JWT_SECRET` | 必需 | JWT 签名密钥，生产环境必须自定义 |
+| `JWT_SECRET` | 必需 | JWT 签名密钥，**必须**设置一个 ≥16 位的强随机串。应用会「失败关闭」——未设置时登录直接返回 500，绝不回退到默认/已知密钥。切勿提交进仓库或写进 README。|
+
+也可以用命令行设置为 Secret（推荐，不在 Dashboard 明文显示）：
+
+```bash
+npx wrangler pages secret put JWT_SECRET
+```
 
 生成随机密钥示例：
 

@@ -13,6 +13,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06b6d4?logo=tailwindcss)](https://tailwindcss.com/)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-Deployed-f38020?logo=cloudflare)](https://pages.cloudflare.com/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Fable 5 Verified](https://img.shields.io/badge/Fable_5-Verified-6E56CF)](#fable5-verified)
+[![Tests](https://img.shields.io/badge/tests-53_passing-3fb950)](#fable5-verified)
 
 </div>
 
@@ -23,7 +25,7 @@
 ShuttleArena is a comprehensive full-stack badminton tournament management system designed for seamless competition organization. From automated lottery grouping to real-time scoring and detailed statistics, it streamlines every aspect of badminton tournament operations.
 
 **Live Demo:** [shuttle-arena-demo.pages.dev](https://shuttle-arena-demo.pages.dev)
-**Demo Credentials:** `demo` / `demo123456`
+**Demo Credentials:** `demo` / `demo123456` — a read-only viewer account (so the public demo can't be griefed)
 
 ---
 
@@ -205,9 +207,22 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Deployment
 
+> [!IMPORTANT]
+> Set a strong `JWT_SECRET` (≥16 chars) **before** deploying. The app fails closed without it — logins return 500 rather than signing tokens with a known key. Never commit this value or put it in the README.
+
 ```bash
-# Deploy to Cloudflare Pages
-pnpm run deploy
+# 1. Set the JWT signing secret (once per environment; paste a random ≥16-char string)
+npx wrangler pages secret put JWT_SECRET
+
+# 2a. Fresh database — schema.sql already includes every table + constraint
+npm run d1:init
+
+# 2b. …or an existing database created before these changes — apply the migrations
+npm run d1:migrate:constraints   # UNIQUE constraints (dedups first)
+npm run d1:migrate:ratelimit     # login_attempts table (rate limiting)
+
+# 3. Build & deploy to Cloudflare Pages
+npm run deploy
 ```
 
 ---
@@ -293,13 +308,15 @@ badminton-tournament-v2/
 ### Available Scripts
 
 ```bash
-pnpm dev          # Start development server
-pnpm build        # Production build
-pnpm start        # Start production server
-pnpm lint         # Run ESLint
-pnpm type-check   # TypeScript type checking
-pnpm test         # Run tests
-pnpm deploy       # Deploy to Cloudflare Pages
+pnpm dev                       # Start development server
+pnpm build                     # Production build
+pnpm start                     # Start production server
+pnpm lint                      # Run ESLint
+pnpm test                      # Run the Vitest suite (53 tests)
+pnpm deploy                    # Deploy to Cloudflare Pages
+npm run d1:init                # Initialize a fresh D1 database (all tables + constraints)
+npm run d1:migrate:constraints # Apply UNIQUE constraints to an existing DB
+npm run d1:migrate:ratelimit   # Add the login_attempts table to an existing DB
 ```
 
 ---
@@ -310,13 +327,33 @@ The application supports multiple languages through i18n configuration. Customiz
 
 ---
 
-## 🔒 Security
+<a id="fable5-verified"></a>
 
-- Input validation and sanitization
-- SQL injection prevention through Drizzle ORM
-- HTTPS-only communication
-- Secure authentication for admin features
-- CORS configured for trusted origins
+## 🛡️ Fable 5 Verified — Security & Reliability
+
+This codebase was audited end-to-end by **Claude Fable 5** (a multi-agent review with adversarial verification) and hardened over three rounds. Every fix ships with a regression test.
+
+> **What the badge means:** a security & reliability review conducted with Claude Fable 5, self-attested by the maintainer. It is **not** an official Anthropic certification or endorsement.
+
+**Blocking issues fixed (1 critical + 5 high):**
+
+| | Fix |
+|---|---|
+| 🔑 | Removed a committed fallback **JWT signing secret** — production now *fails closed* when `JWT_SECRET` is unset (no forgeable admin tokens) |
+| 🔒 | **Scoring API** now requires authentication + participant/admin authorization (was writable by anonymous internet clients) |
+| ✅ | **Server-side score validation** — integer bounds, per-mode game caps, timeline limits |
+| 🧮 | **Correct standings** — no double/premature points when a mid-encounter match is unfinished |
+| ⚛️ | **Atomic multi-write operations** via `db.batch()` — a partial failure can no longer corrupt or lose tournament data |
+
+**Additional hardening:**
+
+- 🚧 **UNIQUE constraints** backing match games, registrations, player slots, and user↔player bindings
+- 🚫 **No data leaks** to anonymous callers (admin roles / usernames removed from public responses)
+- 🐢 **Per-IP login rate limiting** (fixed window) to blunt brute force
+- 🔑 Constant-time login comparison (no username enumeration via timing); 8-char minimum passwords
+- 🩹 Patched the **drizzle-orm** SQL-injection advisory ([GHSA-gpj5-g38j-94v9](https://github.com/advisories/GHSA-gpj5-g38j-94v9))
+
+**Automated tests:** `53` Vitest tests covering the scheduling engine, score validation, standings, DB constraints, transaction rollback, and rate limiting — run with `npm test`.
 
 ---
 

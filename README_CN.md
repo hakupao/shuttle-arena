@@ -13,6 +13,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06b6d4?logo=tailwindcss)](https://tailwindcss.com/)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-已部署-f38020?logo=cloudflare)](https://pages.cloudflare.com/)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Fable 5 Verified](https://img.shields.io/badge/Fable_5-Verified-6E56CF)](#fable5-verified)
+[![Tests](https://img.shields.io/badge/tests-53_passing-3fb950)](#fable5-verified)
 
 </div>
 
@@ -23,7 +25,7 @@
 ShuttleArena 是一个功能完整的全栈羽毛球赛事管理系统，旨在简化赛事组织流程。从自动抽签分组、日程安排生成，到实时计分和详细数据统计，覆盖赛事管理的每个环节。
 
 **在线演示:** [shuttle-arena-demo.pages.dev](https://shuttle-arena-demo.pages.dev)
-**演示账号:** `demo` / `demo123456`
+**演示账号:** `demo` / `demo123456` — 只读浏览账号（避免公开演示被人破坏）
 
 ---
 
@@ -205,9 +207,22 @@ pnpm dev
 
 ### 部署
 
+> [!IMPORTANT]
+> 部署**前**必须设置强 `JWT_SECRET`（≥16 位）。缺失时应用会「失败关闭」——登录直接返回 500，而不会用已知密钥签发令牌。**切勿**把该值提交进仓库或写进 README。
+
 ```bash
-# 部署到 Cloudflare Pages
-pnpm run deploy
+# 1. 设置 JWT 签名密钥（每个环境一次；粘贴一个 ≥16 位的随机串）
+npx wrangler pages secret put JWT_SECRET
+
+# 2a. 全新数据库 —— schema.sql 已包含全部表和约束
+npm run d1:init
+
+# 2b. …或在这些改动之前建好的旧数据库 —— 执行迁移
+npm run d1:migrate:constraints   # UNIQUE 约束（会先去重）
+npm run d1:migrate:ratelimit     # login_attempts 限速表
+
+# 3. 构建并部署到 Cloudflare Pages
+npm run deploy
 ```
 
 ---
@@ -293,13 +308,15 @@ badminton-tournament-v2/
 ### 常用命令
 
 ```bash
-pnpm dev          # 启动开发服务器
-pnpm build        # 生产环境构建
-pnpm start        # 启动生产服务器
-pnpm lint         # 运行 ESLint
-pnpm type-check   # TypeScript 类型检查
-pnpm test         # 运行测试
-pnpm deploy       # 部署到 Cloudflare Pages
+pnpm dev                       # 启动开发服务器
+pnpm build                     # 生产环境构建
+pnpm start                     # 启动生产服务器
+pnpm lint                      # 运行 ESLint
+pnpm test                      # 运行 Vitest 测试集（53 个）
+pnpm deploy                    # 部署到 Cloudflare Pages
+npm run d1:init                # 初始化全新 D1 数据库（含全部表和约束）
+npm run d1:migrate:constraints # 为旧数据库补 UNIQUE 约束
+npm run d1:migrate:ratelimit   # 为旧数据库补 login_attempts 表
 ```
 
 ---
@@ -310,13 +327,33 @@ pnpm deploy       # 部署到 Cloudflare Pages
 
 ---
 
-## 🔒 安全性
+<a id="fable5-verified"></a>
 
-- 输入验证和清理
-- 通过 Drizzle ORM 防止 SQL 注入
-- HTTPS 强制加密通信
-- 管理功能的安全身份验证
-- 为信任源配置的 CORS
+## 🛡️ Fable 5 Verified — 安全与可靠性
+
+本项目由 **Claude Fable 5** 做了端到端审查（多智能体 + 对抗式核验），分三轮加固完成。每一处修复都配有回归测试。
+
+> **徽章含义：** 一次由 Claude Fable 5 执行、并由维护者自证的安全与可靠性审查。**不是** Anthropic 的官方认证或背书。
+
+**已修复的阻断性问题（1 个严重 + 5 个高危）：**
+
+| | 修复 |
+|---|---|
+| 🔑 | 移除提交进仓库的**回退 JWT 签名密钥**——生产环境在 `JWT_SECRET` 缺失时*失败关闭*（无法伪造管理员令牌） |
+| 🔒 | **计分接口**改为要求登录 + 参赛者/管理员鉴权（此前匿名互联网客户端也能写入） |
+| ✅ | **服务端比分校验**——整数范围、按赛制的局数上限、明细长度上限 |
+| 🧮 | **积分榜修正**——对阵中途未打完的比赛不再重复/提前计分 |
+| ⚛️ | **多步写操作原子化**（`db.batch()`）——中途失败不再损坏或丢失赛事数据 |
+
+**额外加固：**
+
+- 🚧 为比分局、报名、选手槽位、用户↔选手绑定加了 **UNIQUE 约束**
+- 🚫 匿名请求**不再泄露**管理员角色 / 用户名等敏感字段
+- 🐢 **按 IP 的登录限速**（固定窗口）抵御暴力破解
+- 🔑 登录恒定时间比对（防用户名枚举）；密码最短 8 位
+- 🩹 修补 **drizzle-orm** SQL 注入公告（[GHSA-gpj5-g38j-94v9](https://github.com/advisories/GHSA-gpj5-g38j-94v9)）
+
+**自动化测试：** `53` 个 Vitest 测试，覆盖排程引擎、比分校验、积分榜、数据库约束、事务回滚和登录限速——运行 `npm test`。
 
 ---
 
