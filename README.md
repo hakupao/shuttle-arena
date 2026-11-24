@@ -22,7 +22,7 @@
 
 ## 📋 Overview
 
-ShuttleArena is a comprehensive full-stack badminton tournament management system designed for seamless competition organization. From automated lottery grouping to real-time scoring and detailed statistics, it streamlines every aspect of badminton tournament operations.
+ShuttleArena is a comprehensive full-stack badminton tournament management system designed for seamless competition organization. From automated lottery grouping to courtside scoring and detailed statistics, it streamlines every aspect of badminton tournament operations.
 
 **Live Demo:** [shuttle-arena-demo.pages.dev](https://shuttle-arena-demo.pages.dev)
 **Demo Credentials:** `demo` / `demo123456` — a read-only viewer account (so the public demo can't be griefed)
@@ -42,7 +42,7 @@ ShuttleArena is a comprehensive full-stack badminton tournament management syste
 </tr>
 <tr>
 <td>⚡</td>
-<td><strong>Real-Time Scoring</strong><br/>Live score updates with mobile-optimized interface</td>
+<td><strong>Courtside Scoring</strong><br/>Score entry on a mobile-optimized interface</td>
 </tr>
 <tr>
 <td>📊</td>
@@ -54,7 +54,7 @@ ShuttleArena is a comprehensive full-stack badminton tournament management syste
 </tr>
 <tr>
 <td>🔄</td>
-<td><strong>Real-Time Synchronization</strong><br/>Instant updates across all connected devices</td>
+<td><strong>Shared Results</strong><br/>Scores are saved to the server; other devices see them on their next page load</td>
 </tr>
 </table>
 
@@ -144,7 +144,7 @@ Visual schedule matrix showing all matches with automatic conflict detection and
 <details>
 <summary><strong>🎯 Match Details & Scoring</strong></summary>
 
-Real-time scoring interface with live point tracking and match progression.
+Scoring interface with point tracking and match progression.
 
 ![Match Detail](docs/screenshots/match-detail.png)
 
@@ -255,7 +255,7 @@ npm run deploy
 
 1. Open match details during gameplay
 2. Use the mobile-friendly scoring interface
-3. Points update in real-time across all devices
+3. Submitted scores are saved to the server; other devices see them when they reload
 4. Automatic ranking recalculation
 
 </details>

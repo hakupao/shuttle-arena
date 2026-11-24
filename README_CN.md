@@ -22,7 +22,7 @@
 
 ## 📋 项目简介
 
-ShuttleArena 是一个功能完整的全栈羽毛球赛事管理系统，旨在简化赛事组织流程。从自动抽签分组、日程安排生成，到实时计分和详细数据统计，覆盖赛事管理的每个环节。
+ShuttleArena 是一个功能完整的全栈羽毛球赛事管理系统，旨在简化赛事组织流程。从自动抽签分组、日程安排生成，到场边计分和详细数据统计，覆盖赛事管理的每个环节。
 
 **在线演示:** [shuttle-arena-demo.pages.dev](https://shuttle-arena-demo.pages.dev)
 **演示账号:** `demo` / `demo123456` — 只读浏览账号（避免公开演示被人破坏）
@@ -42,7 +42,7 @@ ShuttleArena 是一个功能完整的全栈羽毛球赛事管理系统，旨在�
 </tr>
 <tr>
 <td>⚡</td>
-<td><strong>实时计分系统</strong><br/>移动端友好的即时计分界面</td>
+<td><strong>场边计分</strong><br/>移动端友好的计分界面</td>
 </tr>
 <tr>
 <td>📊</td>
@@ -54,7 +54,7 @@ ShuttleArena 是一个功能完整的全栈羽毛球赛事管理系统，旨在�
 </tr>
 <tr>
 <td>🔄</td>
-<td><strong>实时数据同步</strong><br/>跨设备无延迟更新</td>
+<td><strong>结果共享</strong><br/>比分保存到服务器，其他设备下次加载页面时看到</td>
 </tr>
 </table>
 
@@ -144,7 +144,7 @@ graph TB
 <details>
 <summary><strong>🎯 比赛详情 & 计分</strong></summary>
 
-实时计分界面，提供即时比分追踪和比赛进度更新。
+计分界面，提供比分追踪和比赛进度。
 
 ![比赛详情](docs/screenshots/match-detail.png)
 
@@ -255,7 +255,7 @@ npm run deploy
 
 1. 在比赛过程中打开比赛详情
 2. 使用移动友好的计分界面
-3. 比分实时更新到所有设备
+3. 提交的比分保存到服务器，其他设备刷新后可见
 4. 自动重新计算排名
 
 </details>
