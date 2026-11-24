@@ -29,7 +29,7 @@ export function Footer() {
                 <Globe className="w-3.5 h-3.5" />
               </a>
               <a
-                href="https://github.com/hakupao/badminton-tournament-v2"
+                href="https://github.com/hakupao/shuttle-arena"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-gray-700 transition-colors"

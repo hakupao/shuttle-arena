@@ -190,8 +190,8 @@ graph TB
 
 ```bash
 # 克隆仓库
-git clone https://github.com/hakupao/badminton-tournament-v2.git
-cd badminton-tournament-v2
+git clone https://github.com/hakupao/shuttle-arena.git
+cd shuttle-arena
 
 # 安装依赖
 pnpm install
@@ -292,7 +292,7 @@ npm run deploy
 ### 项目结构
 
 ```
-badminton-tournament-v2/
+shuttle-arena/
 ├── src/
 │   ├── app/              # Next.js 应用路由
 │   ├── components/       # React 组件
@@ -377,7 +377,7 @@ npm run d1:migrate:ratelimit   # 为旧数据库补 login_attempts 表
 
 ## 📞 获取帮助
 
-如有问题、疑问或建议，请在 GitHub 上提交 [issue](https://github.com/hakupao/badminton-tournament-v2/issues)。
+如有问题、疑问或建议，请在 GitHub 上提交 [issue](https://github.com/hakupao/shuttle-arena/issues)。
 
 ---
 

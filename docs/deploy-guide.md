@@ -33,8 +33,8 @@ Browser
 安装依赖：
 
 ```bash
-git clone https://github.com/hakupao/badminton-tournament-v2.git
-cd badminton-tournament-v2
+git clone https://github.com/hakupao/shuttle-arena.git
+cd shuttle-arena
 npm install
 ```
 

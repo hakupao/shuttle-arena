@@ -190,8 +190,8 @@ Touch-optimized interface for managing scores directly from courtside.
 
 ```bash
 # Clone the repository
-git clone https://github.com/hakupao/badminton-tournament-v2.git
-cd badminton-tournament-v2
+git clone https://github.com/hakupao/shuttle-arena.git
+cd shuttle-arena
 
 # Install dependencies
 pnpm install
@@ -292,7 +292,7 @@ The project uses GitHub Actions for automated testing and deployment:
 ### Project Structure
 
 ```
-badminton-tournament-v2/
+shuttle-arena/
 ├── src/
 │   ├── app/              # Next.js app router
 │   ├── components/       # React components
@@ -377,7 +377,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📞 Support
 
-For issues, questions, or suggestions, please open an [issue](https://github.com/hakupao/badminton-tournament-v2/issues) on GitHub.
+For issues, questions, or suggestions, please open an [issue](https://github.com/hakupao/shuttle-arena/issues) on GitHub.
 
 ---
 
