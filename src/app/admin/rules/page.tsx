@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   SlidersHorizontal,
   Users,
@@ -31,6 +31,8 @@ import {
   buildTemplatePositions,
 } from "@/lib/constants";
 import { parseIntegerInput, sanitizeIntegerInput } from "@/lib/utils";
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 interface TournamentDetail {
   malesPerGroup: number;
@@ -64,17 +66,13 @@ interface ScheduleResponse {
 }
 
 const MATCH_TYPE_OPTIONS = [
-  { value: "MD", label: "男双", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { value: "WD", label: "女双", color: "bg-pink-50 text-pink-700 border-pink-200" },
-  { value: "XD", label: "混双", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { value: "MD", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { value: "WD", color: "bg-pink-50 text-pink-700 border-pink-200" },
+  { value: "XD", color: "bg-purple-50 text-purple-700 border-purple-200" },
 ] as const;
 
 function getMatchTypeColor(type: string) {
   return MATCH_TYPE_OPTIONS.find((option) => option.value === type)?.color || "";
-}
-
-function getMatchTypeLabel(type: string) {
-  return MATCH_TYPE_OPTIONS.find((option) => option.value === type)?.label || type;
 }
 
 function syncMirroredMatch(match: TemplateMatch): TemplateMatch {
@@ -100,6 +98,11 @@ function normalizeTemplateSignature(matches: TemplateMatch[]) {
 }
 
 export default function AdminRulesPage() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const [loading, setLoading] = useState(true);
   const [loadedTournamentId, setLoadedTournamentId] = useState<number | null>(null);
@@ -170,7 +173,7 @@ export default function AdminRulesPage() {
       setInitialTemplateSignature(normalizeTemplateSignature(nextMatches));
       setHasFormalSchedule((scheduleData.matches || []).length > 0);
     } catch {
-      toast.error("加载赛制设置失败");
+      toast.error(tRef.current("adminRules.loadFailed"));
     } finally {
       setLoadedTournamentId(selectedTournamentId);
       setLoading(false);
@@ -263,7 +266,7 @@ export default function AdminRulesPage() {
 
   const handleResetTemplate = () => {
     setMatches(buildMirroredDefaults(parsedMalesPerGroup, parsedFemalesPerGroup));
-    toast.info("模板草稿已恢复为当前编制的默认模板");
+    toast.info(t("adminRules.templateReset"));
   };
 
   const handleSave = async () => {
@@ -279,18 +282,18 @@ export default function AdminRulesPage() {
       : currentTemplateSignature !== initialTemplateSignature;
 
     if (!groupCountChanged && !rosterShapeChanged && !templateNeedsSave) {
-      toast.info("当前没有需要保存的改动");
+      toast.info(t("adminRules.noChanges"));
       return;
     }
 
     const warnings: string[] = [];
     if (groupCountChanged) {
-      warnings.push("调整小组数会清空正式赛程，并按新的小组数重建所有队伍槽位。");
+      warnings.push(t("adminRules.warnGroupCount"));
     }
     if (rosterShapeChanged) {
-      warnings.push("调整每组男女人数会清空正式赛程、参赛者位置分配、账号绑定，并重置模板结构。");
+      warnings.push(t("adminRules.warnRosterShape"));
     } else if (templateNeedsSave && hasFormalSchedule) {
-      warnings.push("保存比赛模板会清空当前正式赛程以及已录入比分、裁判记录、得分时间线。");
+      warnings.push(t("adminRules.warnTemplate"));
     }
 
     if (warnings.length > 0 && !confirm(warnings.join("\n\n"))) {
@@ -312,7 +315,7 @@ export default function AdminRulesPage() {
 
         if (!tournamentRes.ok) {
           const data = await tournamentRes.json() as { error?: string };
-          toast.error(data.error || "保存分组设置失败");
+          toast.error(data.error || t("adminRules.saveGroupFailed"));
           return;
         }
       }
@@ -329,35 +332,35 @@ export default function AdminRulesPage() {
 
         if (!templateRes.ok) {
           const data = await templateRes.json() as { error?: string };
-          toast.error(data.error || "保存比赛模板失败");
+          toast.error(data.error || t("adminRules.saveTemplateFailed"));
           return;
         }
       }
 
-      toast.success("赛制设置已保存");
+      toast.success(t("adminRules.saved"));
       await fetchData();
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminRules.networkError"));
     } finally {
       setSaving(false);
     }
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminRules.loading")}</div>;
   }
 
   if (!currentId) {
     return (
       <div className="admin-page-medium">
         <AdminPageHeader
-          title="赛制设置"
+          title={t("adminRules.title")}
           icon={SlidersHorizontal}
           iconClassName="w-4.5 h-4.5 text-blue-600"
         />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请先回到管理后台选择一个赛事
+            {t("adminRules.selectTournamentFirst")}
           </CardContent>
         </Card>
       </div>
@@ -372,7 +375,7 @@ export default function AdminRulesPage() {
   return (
     <div className="admin-page-medium">
       <AdminPageHeader
-        title="赛制设置"
+        title={t("adminRules.title")}
         icon={SlidersHorizontal}
         iconClassName="w-4.5 h-4.5 text-blue-600"
         actions={(
@@ -384,7 +387,7 @@ export default function AdminRulesPage() {
               onClick={handleResetTemplate}
             >
               <RotateCcw className="w-3.5 h-3.5 mr-1" />
-              恢复默认模板
+              {t("adminRules.resetTemplate")}
             </Button>
             <Button
               size="sm"
@@ -393,7 +396,7 @@ export default function AdminRulesPage() {
               className="bg-blue-600 hover:bg-blue-700 text-white gap-1"
             >
               <Save className="w-3.5 h-3.5" />
-              {saving ? "保存中..." : "保存赛制设置"}
+              {saving ? t("adminRules.saving") : t("adminRules.saveSettings")}
             </Button>
           </div>
         )}
@@ -405,12 +408,12 @@ export default function AdminRulesPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base text-gray-800 flex items-center gap-2">
                 <Users className="w-4 h-4 text-blue-500" />
-                分组编制
+                {t("adminRules.groupSetup")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-gray-600 font-medium">小组数</Label>
+                <Label className="text-gray-600 font-medium">{t("adminRules.groupCount")}</Label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -422,7 +425,7 @@ export default function AdminRulesPage() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="min-w-0 space-y-2">
-                  <Label className="text-gray-600 font-medium">每组男生</Label>
+                  <Label className="text-gray-600 font-medium">{t("adminRules.malesPerGroup")}</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -433,7 +436,7 @@ export default function AdminRulesPage() {
                   />
                 </div>
                 <div className="min-w-0 space-y-2">
-                  <Label className="text-gray-600 font-medium">每组女生</Label>
+                  <Label className="text-gray-600 font-medium">{t("adminRules.femalesPerGroup")}</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -446,12 +449,12 @@ export default function AdminRulesPage() {
               </div>
               <div className="squircle-card bg-gradient-to-r from-blue-50 to-cyan-50 p-3 text-sm border border-blue-100">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">每组人数</span>
-                  <span className="font-bold text-gray-700">{parsedMalesPerGroup + parsedFemalesPerGroup} 人</span>
+                  <span className="text-gray-500">{t("adminRules.playersPerGroup")}</span>
+                  <span className="font-bold text-gray-700">{t("adminRules.peopleCount", { n: parsedMalesPerGroup + parsedFemalesPerGroup })}</span>
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-gray-500">总参赛人数</span>
-                  <span className="font-extrabold text-blue-600">{totalPlayers} 人</span>
+                  <span className="text-gray-500">{t("adminRules.totalPlayers")}</span>
+                  <span className="font-extrabold text-blue-600">{t("adminRules.peopleCount", { n: totalPlayers })}</span>
                 </div>
               </div>
             </CardContent>
@@ -462,7 +465,7 @@ export default function AdminRulesPage() {
         <div className="admin-page-main">
           <Card className="border-green-100 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base text-gray-800">位置编制</CardTitle>
+              <CardTitle className="text-base text-gray-800">{t("adminRules.positionSetup")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
@@ -471,7 +474,7 @@ export default function AdminRulesPage() {
                     key={position.positionNumber}
                     gender={position.gender}
                     positionNumber={position.positionNumber}
-                    suffix="号位"
+                    suffix={t("common.position.slotSuffix")}
                     className={`h-8 px-3 text-sm ${
                       position.gender === "M"
                         ? "border-blue-200 bg-blue-50 text-blue-700"
@@ -487,25 +490,25 @@ export default function AdminRulesPage() {
             <Card className="border-gray-100 shadow-sm text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold text-gray-800">{matches.length}</div>
-                <div className="text-xs text-gray-500">总场次</div>
+                <div className="text-xs text-gray-500">{t("adminRules.totalMatches")}</div>
               </CardContent>
             </Card>
             <Card className="border-blue-100 shadow-sm text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold text-blue-600">{mdCount}</div>
-                <div className="text-xs text-blue-500">男双</div>
+                <div className="text-xs text-blue-500">{matchTypeLabel(t, "MD")}</div>
               </CardContent>
             </Card>
             <Card className="border-pink-100 shadow-sm text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold text-pink-600">{wdCount}</div>
-                <div className="text-xs text-pink-500">女双</div>
+                <div className="text-xs text-pink-500">{matchTypeLabel(t, "WD")}</div>
               </CardContent>
             </Card>
             <Card className="border-purple-100 shadow-sm text-center">
               <CardContent className="py-4">
                 <div className="text-2xl font-bold text-purple-600">{xdCount}</div>
-                <div className="text-xs text-purple-500">混双</div>
+                <div className="text-xs text-purple-500">{matchTypeLabel(t, "XD")}</div>
               </CardContent>
             </Card>
           </div>
@@ -514,7 +517,7 @@ export default function AdminRulesPage() {
             <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-base text-gray-800 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-green-500" />
-                比赛模板
+                {t("adminRules.matchTemplate")}
               </CardTitle>
               <Button
                 variant="outline"
@@ -523,7 +526,7 @@ export default function AdminRulesPage() {
                 onClick={addMatch}
               >
                 <Plus className="w-3.5 h-3.5 mr-1" />
-                添加比赛
+                {t("adminRules.addMatch")}
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -538,7 +541,7 @@ export default function AdminRulesPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-gray-400">#{index + 1}</span>
                         <Badge className={`${getMatchTypeColor(match.matchType)} border`}>
-                          {getMatchTypeLabel(match.matchType)}
+                          {matchTypeLabel(t, match.matchType)}
                         </Badge>
                       </div>
                       <Button
@@ -562,7 +565,7 @@ export default function AdminRulesPage() {
                         <SelectContent>
                           {MATCH_TYPE_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                              {matchTypeLabel(t, option.value)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -570,7 +573,7 @@ export default function AdminRulesPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <div className="text-xs text-gray-400 font-medium">出场组合</div>
+                      <div className="text-xs text-gray-400 font-medium">{t("adminRules.lineup")}</div>
                       <div className="flex gap-2">
                         <Select
                           value={String(match.homePos1)}
@@ -620,7 +623,7 @@ export default function AdminRulesPage() {
                         </Select>
                       </div>
                       <div className="squircle-sm bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                        客队自动镜像：A组 {match.homePos1} + {match.homePos2} vs B组 {match.homePos1} + {match.homePos2}
+                        {t("adminRules.mirrorHint", { p1: match.homePos1, p2: match.homePos2 })}
                       </div>
                     </div>
                   </div>
@@ -629,7 +632,7 @@ export default function AdminRulesPage() {
 
               {matches.length === 0 && (
                 <div className="text-center py-8 text-gray-400">
-                  暂无比赛，点击“添加比赛”开始配置
+                  {t("adminRules.noMatches")}
                 </div>
               )}
             </CardContent>

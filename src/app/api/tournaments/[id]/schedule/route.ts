@@ -15,6 +15,7 @@ import { generateMatches, scheduleMatches, generateTimeSlots } from "@/lib/engin
 import type { SimulationParams } from "@/lib/engine";
 import { eq, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -32,15 +33,16 @@ interface ProvidedScheduledMatch {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -50,7 +52,7 @@ export async function GET(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     const allMatches = await db
@@ -92,7 +94,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Get schedule error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -100,11 +102,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -113,7 +116,7 @@ export async function POST(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const db = getDb();
@@ -124,11 +127,11 @@ export async function POST(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     if (tournament.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const tournamentGroups = (await db
@@ -153,14 +156,14 @@ export async function POST(
 
     if (tournamentGroups.length < 2) {
       return NextResponse.json(
-        { error: "Need at least 2 groups to generate schedule" },
+        { error: t("api.needTwoGroups") },
         { status: 400 }
       );
     }
 
     if (templates.length === 0) {
       return NextResponse.json(
-        { error: "No template matches defined" },
+        { error: t("api.noTemplateMatches") },
         { status: 400 }
       );
     }
@@ -260,7 +263,7 @@ export async function POST(
           match.courtNumber > tournament.courtsCount
         ) {
           return NextResponse.json(
-            { error: "赛程中的轮次和场地号必须为有效正整数" },
+            { error: t("api.scheduleBadRoundCourt") },
             { status: 400 }
           );
         }
@@ -273,7 +276,7 @@ export async function POST(
           match.homeGroupIndex === match.awayGroupIndex
         ) {
           return NextResponse.json(
-            { error: "赛程中的队伍索引无效" },
+            { error: t("api.scheduleBadTeam") },
             { status: 400 }
           );
         }
@@ -289,7 +292,7 @@ export async function POST(
           match.awayPos2 > totalPositions
         ) {
           return NextResponse.json(
-            { error: "赛程中的位置编号超出当前编制范围" },
+            { error: t("api.schedulePositionRange") },
             { status: 400 }
           );
         }
@@ -304,7 +307,7 @@ export async function POST(
           templateMatch.awayPos2 !== match.awayPos2
         ) {
           return NextResponse.json(
-            { error: "赛程草稿与当前比赛模板不一致，请重新模拟后再发布" },
+            { error: t("api.scheduleTemplateMismatch") },
             { status: 400 }
           );
         }
@@ -407,6 +410,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("Generate schedule error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

@@ -10,12 +10,8 @@ import { useTournament } from "@/lib/tournament-context";
 import { LogIn, UserX, Clock, CheckCircle, Play } from "lucide-react";
 import Link from "next/link";
 import { ShuttlecockIcon } from "@/components/brand/shuttlecock-icon";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 const MATCH_TYPE_COLORS: Record<string, string> = {
   MD: "bg-blue-50 text-blue-700 border-blue-200",
@@ -65,6 +61,7 @@ interface ScheduleResponse {
 }
 
 export default function MyMatchesPage() {
+  const t = useT();
   const { user, loading: authLoading } = useAuth();
   const { currentId, loading: tournamentLoading } = useTournament();
   const [matches, setMatches] = useState<MatchInfo[]>([]);
@@ -125,7 +122,7 @@ export default function MyMatchesPage() {
   }, [user, authLoading, tournamentLoading, currentId, requestKey]);
 
   if (authLoading || tournamentLoading || (requestKey !== null && loadedRequestKey !== requestKey)) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("myMatches.loading")}</div>;
   }
 
   const groupMap = new Map(groups.map((g) => [g.id, g]));
@@ -187,7 +184,7 @@ export default function MyMatchesPage() {
   const formatPlayerName = (p?: PlayerInfo) => {
     if (!p) return "?";
     const group = groupMap.get(p.groupId);
-    return p.name || `${group?.icon || ""}${p.positionNumber}号`;
+    return p.name || `${group?.icon || ""}${p.positionNumber}${t("common.position.suffix")}`;
   };
 
   const renderMatchCard = (match: MatchInfo) => {
@@ -213,16 +210,16 @@ export default function MyMatchesPage() {
           {/* Row 1: type + meta + status */}
           <div className="flex items-center gap-2">
             <Badge className={`${MATCH_TYPE_COLORS[match.matchType]} border text-[10px] px-1.5 py-0`}>
-              {MATCH_TYPE_LABELS[match.matchType]}
+              {matchTypeLabel(t, match.matchType)}
             </Badge>
             <span className="text-[11px] text-gray-400">
-              第{match.roundNumber}轮 · 场地{match.courtNumber}
+              {t("myMatches.roundCourt", { round: match.roundNumber, court: match.courtNumber })}
             </span>
             <span className="ml-auto text-[11px] font-medium">
-              {result === "win" && <span className="text-green-600">胜</span>}
-              {result === "loss" && <span className="text-red-500">负</span>}
-              {match.status === "in_progress" && <span className="text-amber-600">进行中</span>}
-              {match.status === "pending" && <span className="text-gray-400">待开始</span>}
+              {result === "win" && <span className="text-green-600">{t("myMatches.win")}</span>}
+              {result === "loss" && <span className="text-red-500">{t("myMatches.loss")}</span>}
+              {match.status === "in_progress" && <span className="text-amber-600">{t("myMatches.inProgress")}</span>}
+              {match.status === "pending" && <span className="text-gray-400">{t("myMatches.pending")}</span>}
             </span>
           </div>
           {/* Row 2: teams + partner/opponent */}
@@ -233,9 +230,9 @@ export default function MyMatchesPage() {
               <span className="text-sm">{awayGroup?.icon}</span>
             </span>
             <span className="mx-2 w-px h-3 bg-gray-200" />
-            <span>搭档 <span className="font-medium text-gray-700">{formatPlayerName(partner)}</span></span>
+            <span>{t("myMatches.partner")} <span className="font-medium text-gray-700">{formatPlayerName(partner)}</span></span>
             <span className="mx-1.5 text-gray-300">·</span>
-            <span>对手 <span className="font-medium text-gray-700">{opponents.map((o) => formatPlayerName(o as PlayerInfo | undefined)).join("+")}</span></span>
+            <span>{t("myMatches.opponent")} <span className="font-medium text-gray-700">{opponents.map((o) => formatPlayerName(o as PlayerInfo | undefined)).join("+")}</span></span>
           </div>
         </div>
       </Link>
@@ -248,15 +245,15 @@ export default function MyMatchesPage() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <ShuttlecockIcon className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">我的比赛</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("myMatches.title")}</h1>
         </div>
         <Card className="border-amber-100 bg-amber-50/50 shadow-sm">
           <CardContent className="py-8 text-center">
             <LogIn className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-700 font-medium">请先登录查看个人赛程</p>
+            <p className="text-sm text-gray-700 font-medium">{t("myMatches.loginRequired")}</p>
             <Link href="/login">
               <button className="mt-3 px-5 py-1.5 bg-green-600 text-white squircle-sm hover:bg-green-700 text-sm font-medium">
-                去登录
+                {t("myMatches.goLogin")}
               </button>
             </Link>
           </CardContent>
@@ -270,12 +267,12 @@ export default function MyMatchesPage() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <ShuttlecockIcon className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">我的比赛</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("myMatches.title")}</h1>
         </div>
         <Card className="border-gray-200 bg-gray-50/60 shadow-sm">
           <CardContent className="py-8 text-center">
             <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">暂无可查看的赛事</p>
+            <p className="text-sm text-gray-600">{t("myMatches.noTournament")}</p>
           </CardContent>
         </Card>
       </div>
@@ -287,20 +284,20 @@ export default function MyMatchesPage() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <ShuttlecockIcon className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">我的比赛</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("myMatches.title")}</h1>
         </div>
         <Card className="border-amber-100 bg-amber-50/50 shadow-sm">
           <CardContent className="py-6 text-center">
             <UserX className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-700 font-medium">账号尚未绑定选手</p>
-            <p className="text-xs text-gray-500 mt-1">请联系管理员绑定参赛位置</p>
+            <p className="text-sm text-gray-700 font-medium">{t("myMatches.notBound")}</p>
+            <p className="text-xs text-gray-500 mt-1">{t("myMatches.contactAdmin")}</p>
           </CardContent>
         </Card>
 
         {matches.length > 0 && (
           <Link href="/schedule">
             <button className="px-4 py-1.5 bg-green-600 text-white squircle-sm hover:bg-green-700 text-sm font-medium">
-              查看完整赛程
+              {t("myMatches.viewFullSchedule")}
             </button>
           </Link>
         )}
@@ -323,7 +320,7 @@ export default function MyMatchesPage() {
               <div className="text-3xl">{myGroup?.icon || ""}</div>
               <div>
                 <h1 className="text-lg font-bold">
-                  {myPlayer.name || `${myGroup?.icon}${myPlayer.positionNumber}号位`}
+                  {myPlayer.name || `${myGroup?.icon}${myPlayer.positionNumber}${t("common.position.slotSuffix")}`}
                 </h1>
                 <div className="flex items-center gap-1.5 text-white/75 text-xs">
                   <span>{myGroup?.name}</span>
@@ -331,7 +328,7 @@ export default function MyMatchesPage() {
                   <PositionLabel
                     gender={myPlayer.gender === "M" ? "M" : "F"}
                     positionNumber={myPlayer.positionNumber}
-                    suffix="号位"
+                    suffix={t("common.position.slotSuffix")}
                   />
                 </div>
               </div>
@@ -339,15 +336,15 @@ export default function MyMatchesPage() {
             <div className="flex items-center gap-5 text-center">
               <div>
                 <div className="text-xl font-bold">{myMatches.length}</div>
-                <div className="text-[10px] text-white/60">场次</div>
+                <div className="text-[10px] text-white/60">{t("myMatches.matchCount")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-green-200">{wins}</div>
-                <div className="text-[10px] text-white/60">胜</div>
+                <div className="text-[10px] text-white/60">{t("myMatches.win")}</div>
               </div>
               <div>
                 <div className="text-xl font-bold text-red-200">{losses}</div>
-                <div className="text-[10px] text-white/60">负</div>
+                <div className="text-[10px] text-white/60">{t("myMatches.loss")}</div>
               </div>
             </div>
           </div>
@@ -362,21 +359,21 @@ export default function MyMatchesPage() {
             className="data-[state=active]:bg-green-600 data-[state=active]:text-white gap-1"
           >
             <Clock className="w-3.5 h-3.5" />
-            待开始 ({pendingMatches.length})
+            {t("myMatches.tabUpcoming", { n: pendingMatches.length })}
           </TabsTrigger>
           <TabsTrigger
             value="active"
             className="data-[state=active]:bg-amber-500 data-[state=active]:text-white gap-1"
           >
             <Play className="w-3.5 h-3.5" />
-            进行中 ({activeMatches.length})
+            {t("myMatches.tabActive", { n: activeMatches.length })}
           </TabsTrigger>
           <TabsTrigger
             value="finished"
             className="data-[state=active]:bg-gray-600 data-[state=active]:text-white gap-1"
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            已完成 ({finishedMatches.length})
+            {t("myMatches.tabFinished", { n: finishedMatches.length })}
           </TabsTrigger>
         </TabsList>
 
@@ -390,7 +387,7 @@ export default function MyMatchesPage() {
           ) : (
             <Card className="border-gray-100">
               <CardContent className="py-8 text-center text-gray-400">
-                没有待开始的比赛
+                {t("myMatches.emptyUpcoming")}
               </CardContent>
             </Card>
           )}
@@ -404,7 +401,7 @@ export default function MyMatchesPage() {
           ) : (
             <Card className="border-gray-100">
               <CardContent className="py-8 text-center text-gray-400">
-                没有进行中的比赛
+                {t("myMatches.emptyActive")}
               </CardContent>
             </Card>
           )}
@@ -420,7 +417,7 @@ export default function MyMatchesPage() {
           ) : (
             <Card className="border-gray-100">
               <CardContent className="py-8 text-center text-gray-400">
-                还没有已完成的比赛
+                {t("myMatches.emptyFinished")}
               </CardContent>
             </Card>
           )}

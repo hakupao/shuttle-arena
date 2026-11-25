@@ -10,18 +10,14 @@ import { toast } from "sonner";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { useTournament } from "@/lib/tournament-context";
 import { sanitizeIntegerInput } from "@/lib/utils";
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 import {
   PenLine,
   CheckCircle,
   Send,
   ChevronRight,
 } from "lucide-react";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
 
 interface Tournament {
   id: number;
@@ -82,6 +78,7 @@ interface TournamentResponse {
 }
 
 export default function AdminScoringPage() {
+  const t = useT();
   const { currentId, loading: tournamentLoading } = useTournament();
   const tournamentId = currentId ? String(currentId) : "";
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -144,7 +141,7 @@ export default function AdminScoringPage() {
     const p = playerMap.get(pid);
     if (!p) return "?";
     const g = groupMap.get(p.groupId);
-    return p.name || `${g?.icon || ""}${p.positionNumber}号`;
+    return p.name || `${g?.icon || ""}${p.positionNumber}${t("common.position.suffix")}`;
   };
 
   const formatPlayerById = (idStr: string) => {
@@ -152,7 +149,7 @@ export default function AdminScoringPage() {
     const p = playerMap.get(Number(idStr));
     if (!p) return null;
     const g = groupMap.get(p.groupId);
-    return `${g?.icon || ""} ${p.name || `${p.positionNumber}号`}`;
+    return `${g?.icon || ""} ${p.name || `${p.positionNumber}${t("common.position.suffix")}`}`;
   };
 
   const filteredMatches = matches.filter((m) => {
@@ -204,7 +201,7 @@ export default function AdminScoringPage() {
     );
 
     if (validGames.length === 0) {
-      toast.error("请至少填写一局比分");
+      toast.error(t("adminScoring.needOneGame"));
       return;
     }
 
@@ -212,11 +209,11 @@ export default function AdminScoringPage() {
       const h = parseInt(g.homeScore, 10);
       const a = parseInt(g.awayScore, 10);
       if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
-        toast.error("比分必须为非负整数");
+        toast.error(t("adminScoring.nonNegativeInt"));
         return;
       }
       if (h === a) {
-        toast.error("比分不能相同（需要决出胜负）");
+        toast.error(t("adminScoring.scoresEqualDecide"));
         return;
       }
     }
@@ -240,12 +237,12 @@ export default function AdminScoringPage() {
       );
 
       if (res.ok) {
-        toast.success("比分录入成功！");
+        toast.success(t("adminScoring.scoreSaved"));
         closeScoring();
         fetchData();
       } else {
         const err = await res.json() as { error?: string };
-        toast.error(err.error || "录入失败");
+        toast.error(err.error || t("adminScoring.entryFailed"));
       }
     } finally {
       setSubmitting(false);
@@ -265,7 +262,7 @@ export default function AdminScoringPage() {
     );
 
     if (entries.length === 0) {
-      toast.error("请至少填写一场比分");
+      toast.error(t("adminScoring.needOneMatch"));
       return;
     }
 
@@ -273,11 +270,11 @@ export default function AdminScoringPage() {
       const h = parseInt(s.homeScore, 10);
       const a = parseInt(s.awayScore, 10);
       if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
-        toast.error("比分必须为非负整数");
+        toast.error(t("adminScoring.nonNegativeInt"));
         return;
       }
       if (h === a) {
-        toast.error("比分不能相同");
+        toast.error(t("adminScoring.scoresEqual"));
         return;
       }
     }
@@ -303,27 +300,27 @@ export default function AdminScoringPage() {
       } catch { /* skip */ }
     }
 
-    toast.success(`批量录入完成：${successCount}/${entries.length} 场成功`);
+    toast.success(t("adminScoring.batchDone", { success: successCount, total: entries.length }));
     setBatchScores({});
     setBatchSubmitting(false);
     fetchData();
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
+    return <div className="text-center py-12 text-muted-foreground">{t("adminScoring.loading")}</div>;
   }
 
   if (!currentId) {
     return (
       <div className="admin-page-medium">
         <AdminPageHeader
-          title="比分录入"
+          title={t("adminScoring.title")}
           icon={PenLine}
           iconClassName="w-4.5 h-4.5 text-rose-500"
         />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请先回到管理后台选择一个赛事
+            {t("adminScoring.selectTournamentFirst")}
           </CardContent>
         </Card>
       </div>
@@ -333,12 +330,12 @@ export default function AdminScoringPage() {
   return (
     <div className="admin-page-medium">
       <AdminPageHeader
-        title="比分录入"
+        title={t("adminScoring.title")}
         icon={PenLine}
         iconClassName="w-4.5 h-4.5 text-rose-500"
         actions={(
           <div className="flex gap-1.5 flex-wrap">
-            {([["pending", "待录入"], ["finished", "已完成"], ["all", "全部"]] as const).map(([val, label]) => (
+            {([["pending", t("adminScoring.filterPending")], ["finished", t("adminScoring.filterFinished")], ["all", t("adminScoring.filterAll")]] as const).map(([val, label]) => (
               <Button
                 key={val}
                 variant={statusFilter === val ? "default" : "outline"}
@@ -355,7 +352,7 @@ export default function AdminScoringPage() {
               className={batchMode ? "bg-amber-600 hover:bg-amber-700 text-white" : "text-amber-600 border-amber-200"}
               onClick={() => { setBatchMode(!batchMode); setBatchScores({}); }}
             >
-              {batchMode ? "退出批量" : "批量录入"}
+              {batchMode ? t("adminScoring.exitBatch") : t("adminScoring.batchEntry")}
             </Button>
           </div>
         )}
@@ -366,8 +363,8 @@ export default function AdminScoringPage() {
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
             <PenLine className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-muted-foreground">暂无比赛</p>
-            <p className="text-sm text-muted-foreground mt-1">请先在「赛程安排」中发布正式赛程</p>
+            <p className="text-muted-foreground">{t("adminScoring.noMatches")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("adminScoring.publishScheduleFirst")}</p>
           </CardContent>
         </Card>
       ) : filteredMatches.length === 0 ? (
@@ -375,7 +372,7 @@ export default function AdminScoringPage() {
           <CardContent className="py-8 text-center">
             <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
             <p className="text-muted-foreground">
-              {statusFilter === "pending" ? "所有比赛已录入完毕！" : "没有符合条件的比赛"}
+              {statusFilter === "pending" ? t("adminScoring.allEntered") : t("adminScoring.noneMatching")}
             </p>
           </CardContent>
         </Card>
@@ -388,7 +385,7 @@ export default function AdminScoringPage() {
 
             return (
               <div key={roundNum}>
-                <h3 className="text-sm font-semibold text-rose-600 mb-2">第 {roundNum} 轮</h3>
+                <h3 className="text-sm font-semibold text-rose-600 mb-2">{t("adminScoring.roundN", { n: roundNum })}</h3>
                 <div className="space-y-2">
                   {roundMatches.map((match) => {
                     const homeGroup = groupMap.get(match.homeGroupId);
@@ -406,15 +403,15 @@ export default function AdminScoringPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <Badge variant="outline" className="text-xs">
-                                  {MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}
+                                  {t("adminScoring.matchCourt", { type: matchTypeLabel(t, match.matchType), court: match.courtNumber })}
                                 </Badge>
                                 {isFinished ? (
                                   <Badge className="bg-green-100 text-green-700 text-xs">
-                                    <CheckCircle className="w-3 h-3 mr-0.5" /> 已录入
+                                    <CheckCircle className="w-3 h-3 mr-0.5" /> {t("adminScoring.recorded")}
                                   </Badge>
                                 ) : (
                                   <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">
-                                    待录入
+                                    {t("adminScoring.pending")}
                                   </Badge>
                                 )}
                               </div>
@@ -435,7 +432,7 @@ export default function AdminScoringPage() {
                                   type="text"
                                   inputMode="numeric"
                                   pattern="[0-9]*"
-                                  placeholder="主"
+                                  placeholder={t("adminScoring.homePlaceholder")}
                                   value={batchScores[match.id]?.homeScore || ""}
                                   onChange={(e) => updateBatchScore(match.id, "homeScore", sanitizeIntegerInput(e.target.value))}
                                   className="w-14 h-8 text-center text-sm font-bold"
@@ -445,7 +442,7 @@ export default function AdminScoringPage() {
                                   type="text"
                                   inputMode="numeric"
                                   pattern="[0-9]*"
-                                  placeholder="客"
+                                  placeholder={t("adminScoring.awayPlaceholder")}
                                   value={batchScores[match.id]?.awayScore || ""}
                                   onChange={(e) => updateBatchScore(match.id, "awayScore", sanitizeIntegerInput(e.target.value))}
                                   className="w-14 h-8 text-center text-sm font-bold"
@@ -455,7 +452,7 @@ export default function AdminScoringPage() {
                               <div className="flex items-center gap-2 shrink-0 ml-2">
                                 {isFinished && match.winner && (
                                   <Badge className="bg-amber-100 text-amber-700 text-xs hidden sm:inline-flex">
-                                    {match.winner === "home" ? homeGroup?.name : awayGroup?.name} 胜
+                                    {t("adminScoring.winnerBadge", { name: (match.winner === "home" ? homeGroup?.name : awayGroup?.name) ?? "" })}
                                   </Badge>
                                 )}
                                 <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -479,14 +476,14 @@ export default function AdminScoringPage() {
           <Card className="border-amber-200 shadow-xl bg-white/95 backdrop-blur-sm">
             <CardContent className="py-3 px-6 flex items-center gap-4">
               <span className="text-sm text-gray-600">
-                {Object.values(batchScores).filter((s) => s.homeScore && s.awayScore).length} 场待提交
+                {t("adminScoring.pendingSubmit", { n: Object.values(batchScores).filter((s) => s.homeScore && s.awayScore).length })}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setBatchScores({})}
               >
-                清空
+                {t("adminScoring.clear")}
               </Button>
               <Button
                 size="sm"
@@ -495,7 +492,7 @@ export default function AdminScoringPage() {
                 disabled={batchSubmitting}
               >
                 <Send className="w-3.5 h-3.5" />
-                {batchSubmitting ? "提交中..." : "批量提交"}
+                {batchSubmitting ? t("adminScoring.submitting") : t("adminScoring.batchSubmit")}
               </Button>
             </CardContent>
           </Card>
@@ -510,8 +507,11 @@ export default function AdminScoringPage() {
               {/* Match Info */}
               <div className="text-center">
                 <Badge variant="outline" className="mb-2">
-                  第{scoringMatch.roundNumber}轮 · 场地{scoringMatch.courtNumber} ·{" "}
-                  {MATCH_TYPE_LABELS[scoringMatch.matchType]}
+                  {t("adminScoring.modalHeader", {
+                    round: scoringMatch.roundNumber,
+                    court: scoringMatch.courtNumber,
+                    type: matchTypeLabel(t, scoringMatch.matchType),
+                  })}
                 </Badge>
                 <div className="flex items-center justify-center gap-3 mt-2 text-lg font-semibold">
                   <span>
@@ -529,19 +529,19 @@ export default function AdminScoringPage() {
               {/* Score Inputs */}
               <div className="space-y-3">
                 <div className="text-sm font-medium text-gray-700">
-                  {scoringMatch.status === "finished" ? "编辑比分" : "比分录入"}
+                  {scoringMatch.status === "finished" ? t("adminScoring.editScore") : t("adminScoring.enterScore")}
                 </div>
                 {games.map((game, i) => (
                   <div key={i} className="flex items-center gap-3">
                     {games.length > 1 && (
-                      <span className="text-xs text-muted-foreground w-12">第{i + 1}局</span>
+                      <span className="text-xs text-muted-foreground w-12">{t("adminScoring.gameN", { n: i + 1 })}</span>
                     )}
                     <div className="flex-1">
                       <Input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="主队"
+                        placeholder={t("adminScoring.homeTeam")}
                         value={game.homeScore}
                         onChange={(e) => updateGame(i, "homeScore", sanitizeIntegerInput(e.target.value))}
                         className="text-center font-bold text-lg"
@@ -553,7 +553,7 @@ export default function AdminScoringPage() {
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        placeholder="客队"
+                        placeholder={t("adminScoring.awayTeam")}
                         value={game.awayScore}
                         onChange={(e) => updateGame(i, "awayScore", sanitizeIntegerInput(e.target.value))}
                         className="text-center font-bold text-lg"
@@ -565,23 +565,23 @@ export default function AdminScoringPage() {
 
               {/* Referee */}
               <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-700">裁判 & 边裁（可选）</div>
+                <div className="text-sm font-medium text-gray-700">{t("adminScoring.refereeAndLine")}</div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="min-w-0">
-                    <label className="text-xs text-muted-foreground">裁判</label>
+                    <label className="text-xs text-muted-foreground">{t("adminScoring.referee")}</label>
                     <Select value={refereeId} onValueChange={(v: string | null) => setRefereeId(v || "")}>
                       <SelectTrigger className="mt-1">
                         <span className="flex flex-1 text-left truncate">
-                          {formatPlayerById(refereeId) || "选择"}
+                          {formatPlayerById(refereeId) || t("adminScoring.select")}
                         </span>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">无</SelectItem>
+                        <SelectItem value="none">{t("adminScoring.none")}</SelectItem>
                         {players.map((p) => {
                           const g = groupMap.get(p.groupId);
                           return (
                             <SelectItem key={p.id} value={String(p.id)}>
-                              {g?.icon || ""} {p.name || `${p.positionNumber}号`}
+                              {g?.icon || ""} {p.name || `${p.positionNumber}${t("common.position.suffix")}`}
                             </SelectItem>
                           );
                         })}
@@ -589,20 +589,20 @@ export default function AdminScoringPage() {
                     </Select>
                   </div>
                   <div className="min-w-0">
-                    <label className="text-xs text-muted-foreground">边裁</label>
+                    <label className="text-xs text-muted-foreground">{t("adminScoring.lineJudge")}</label>
                     <Select value={lineJudgeId} onValueChange={(v: string | null) => setLineJudgeId(v || "")}>
                       <SelectTrigger className="mt-1">
                         <span className="flex flex-1 text-left truncate">
-                          {formatPlayerById(lineJudgeId) || "选择"}
+                          {formatPlayerById(lineJudgeId) || t("adminScoring.select")}
                         </span>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">无</SelectItem>
+                        <SelectItem value="none">{t("adminScoring.none")}</SelectItem>
                         {players.map((p) => {
                           const g = groupMap.get(p.groupId);
                           return (
                             <SelectItem key={p.id} value={String(p.id)}>
-                              {g?.icon || ""} {p.name || `${p.positionNumber}号`}
+                              {g?.icon || ""} {p.name || `${p.positionNumber}${t("common.position.suffix")}`}
                             </SelectItem>
                           );
                         })}
@@ -615,7 +615,7 @@ export default function AdminScoringPage() {
               {/* Actions */}
               <div className="flex gap-3 pt-2">
                 <Button variant="outline" className="flex-1" onClick={closeScoring}>
-                  取消
+                  {t("adminScoring.cancel")}
                 </Button>
                 <Button
                   className="flex-1 bg-rose-600 hover:bg-rose-700 gap-1"
@@ -623,7 +623,7 @@ export default function AdminScoringPage() {
                   disabled={submitting}
                 >
                   <Send className="w-4 h-4" />
-                  {submitting ? "提交中..." : "提交比分"}
+                  {submitting ? t("adminScoring.submitting") : t("adminScoring.submitScore")}
                 </Button>
               </div>
             </CardContent>

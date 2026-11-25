@@ -13,19 +13,21 @@ import {
 import { eq } from "drizzle-orm";
 import { SCORING_MODES } from "@/lib/constants";
 import type { ScoringMode } from "@/lib/constants";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const { id } = await params;
     const matchId = parseInt(id, 10);
     if (isNaN(matchId)) {
-      return NextResponse.json({ error: "Invalid match ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidMatchId") }, { status: 400 });
     }
 
     const match = await db
@@ -35,7 +37,7 @@ export async function GET(
       .get();
 
     if (!match) {
-      return NextResponse.json({ error: "Match not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.matchNotFound") }, { status: 404 });
     }
 
     // Get tournament for scoring mode
@@ -162,6 +164,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Get match error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

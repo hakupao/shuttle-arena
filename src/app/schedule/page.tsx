@@ -8,19 +8,19 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { useTournament } from "@/lib/tournament-context";
+import { useI18n, useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
+import type { TFunction } from "@/i18n/translate";
 
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
+const STATUS_LABELS = {
+  pending: { labelKey: "schedule.statusPending", color: "text-gray-500" },
+  in_progress: { labelKey: "schedule.statusInProgress", color: "text-amber-600" },
+  finished: { labelKey: "schedule.statusFinished", color: "text-green-600" },
+} as const;
 
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending: { label: "待开始", color: "text-gray-500" },
-  in_progress: { label: "进行中", color: "text-amber-600" },
-  finished: { label: "已完成", color: "text-green-600" },
-};
+function getStatusInfo(status: string) {
+  return STATUS_LABELS[status as keyof typeof STATUS_LABELS] || STATUS_LABELS.pending;
+}
 
 interface GameScore {
   gameNumber: number;
@@ -77,10 +77,10 @@ async function fetchJson<T>(input: RequestInfo | URL): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function formatPlayer(player: PlayerInfo | undefined, groupMap: Map<number, GroupInfo>) {
+function formatPlayer(t: TFunction, player: PlayerInfo | undefined, groupMap: Map<number, GroupInfo>) {
   if (!player) return "?";
   const group = groupMap.get(player.groupId);
-  const codename = `${group?.icon || ""}${player.positionNumber}号`;
+  const codename = `${group?.icon || ""}${player.positionNumber}${t("common.position.suffix")}`;
   // If bound to a user, show "codename(username)"
   const displayName = player.boundUsername || player.name;
   if (displayName) return `${codename}(${displayName})`;
@@ -88,6 +88,7 @@ function formatPlayer(player: PlayerInfo | undefined, groupMap: Map<number, Grou
 }
 
 function ScheduleContent() {
+  const { t, tNode } = useI18n();
   const { user } = useAuth();
   const { currentId, loading: tournamentLoading } = useTournament();
   const [matches, setMatches] = useState<ScheduleMatch[]>([]);
@@ -162,7 +163,7 @@ function ScheduleContent() {
   }, [currentId, tournamentLoading]);
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId)) {
-    return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
+    return <div className="text-center py-12 text-muted-foreground">{t("schedule.loading")}</div>;
   }
 
   if (!currentId) {
@@ -170,12 +171,12 @@ function ScheduleContent() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <CalendarDays className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">赛程</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("schedule.title")}</h1>
         </div>
         <Card className="border-dashed border-border/50">
           <CardContent className="py-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">暂无可查看的赛事</p>
+            <p className="text-sm text-muted-foreground">{t("schedule.noTournament")}</p>
           </CardContent>
         </Card>
       </div>
@@ -187,12 +188,12 @@ function ScheduleContent() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <CalendarDays className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">赛程</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("schedule.title")}</h1>
         </div>
         <Card className="border-dashed border-border/50">
           <CardContent className="py-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">赛程尚未生成</p>
+            <p className="text-sm text-muted-foreground">{t("schedule.notGenerated")}</p>
           </CardContent>
         </Card>
       </div>
@@ -206,7 +207,7 @@ function ScheduleContent() {
   const playerSearchText = new Map<number, string>();
   for (const p of players) {
     const group = groupMap.get(p.groupId);
-    const parts = [group?.icon, group?.name, `${p.positionNumber}号`, p.name, p.boundUsername].filter(Boolean);
+    const parts = [group?.icon, group?.name, `${p.positionNumber}${t("common.position.suffix")}`, p.name, p.boundUsername].filter(Boolean);
     playerSearchText.set(p.id, parts.join(" ").toLowerCase());
   }
 
@@ -234,9 +235,9 @@ function ScheduleContent() {
 
     return (
       <span className="block text-[10px] text-gray-500 leading-[1.45]">
-        <span className={isP1Match ? "text-green-700 font-semibold" : ""}>{formatPlayer(p1, groupMap)}</span>
+        <span className={isP1Match ? "text-green-700 font-semibold" : ""}>{formatPlayer(t, p1, groupMap)}</span>
         {" + "}
-        <span className={isP2Match ? "text-green-700 font-semibold" : ""}>{formatPlayer(p2, groupMap)}</span>
+        <span className={isP2Match ? "text-green-700 font-semibold" : ""}>{formatPlayer(t, p2, groupMap)}</span>
       </span>
     );
   };
@@ -246,17 +247,17 @@ function ScheduleContent() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarDays className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">赛程</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("schedule.title")}</h1>
         </div>
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "matrix" | "list")}>
           <TabsList className="bg-green-50/80">
             <TabsTrigger value="matrix" className="data-[state=active]:bg-green-600 data-[state=active]:text-white gap-1">
               <LayoutGrid className="w-3.5 h-3.5" />
-              矩阵
+              {t("schedule.viewMatrix")}
             </TabsTrigger>
             <TabsTrigger value="list" className="data-[state=active]:bg-green-600 data-[state=active]:text-white gap-1">
               <List className="w-3.5 h-3.5" />
-              列表
+              {t("schedule.viewList")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -267,7 +268,7 @@ function ScheduleContent() {
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
         <Input
           type="text"
-          placeholder="搜索选手姓名..."
+          placeholder={t("schedule.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-8 pr-8 h-9 text-sm bg-white border-green-200 focus-visible:ring-green-300"
@@ -285,14 +286,14 @@ function ScheduleContent() {
 
       {isSearching && (
         <div className="text-xs text-muted-foreground">
-          找到 <span className="font-medium text-green-700">{filteredMatches.length}</span> 场相关比赛
+          {tNode("schedule.searchFound", { n: <span className="font-medium text-green-700">{filteredMatches.length}</span> })}
         </div>
       )}
 
       {myPlayerId && !isSearching && (
         <div className="flex items-center gap-1.5 text-xs text-yellow-700 bg-yellow-50/80 border border-yellow-200 squircle-sm px-2.5 py-1">
           <Star className="w-3 h-3 fill-yellow-400 text-yellow-500 shrink-0" />
-          <span>黄色高亮 = 你的比赛</span>
+          <span>{t("schedule.mineHint")}</span>
         </div>
       )}
 
@@ -300,7 +301,7 @@ function ScheduleContent() {
         <Card className="border-dashed border-border/50">
           <CardContent className="py-10 text-center">
             <Search className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">未找到与「{searchQuery}」相关的比赛</p>
+            <p className="text-sm text-muted-foreground">{t("schedule.searchEmpty", { query: searchQuery })}</p>
           </CardContent>
         </Card>
       ) : viewMode === "matrix" && !isSearching ? (
@@ -313,7 +314,7 @@ function ScheduleContent() {
                 <div className="px-1.5 py-2 text-[10px] font-semibold text-green-700 text-center"></div>
                 {Array.from({ length: maxCourt }, (_, i) => (
                   <div key={i} className="px-1 py-2 text-[10px] font-semibold tracking-tight text-green-700 text-center whitespace-nowrap">
-                    场地{i + 1}
+                    {t("schedule.courtShort", { n: i + 1 })}
                   </div>
                 ))}
               </div>
@@ -334,7 +335,7 @@ function ScheduleContent() {
                       onClick={() => setExpandedRound(isExpanded ? null : roundNum)}
                     >
                       <div className={`px-1 py-2 text-[11px] leading-none font-bold text-center flex items-center justify-center whitespace-nowrap ${allDone ? "text-green-600" : "text-green-700"}`}>
-                        第{roundNum}轮
+                        {t("schedule.roundShort", { n: roundNum })}
                       </div>
                       {Array.from({ length: maxCourt }, (_, courtIdx) => {
                         const match = roundMatches.find((m) => m.courtNumber === courtIdx + 1);
@@ -371,7 +372,7 @@ function ScheduleContent() {
                                 </div>
                               ) : (
                                 <div className="mt-0.5 text-[8px] text-gray-400 whitespace-nowrap">
-                                  {MATCH_TYPE_LABELS[match.matchType]}
+                                  {matchTypeLabel(t, match.matchType)}
                                 </div>
                               )}
                               {isMine && !isFinished && (
@@ -399,7 +400,7 @@ function ScheduleContent() {
                                   : match.matchType === "XD"
                                     ? "bg-purple-50/90"
                                     : "bg-white/90";
-                          const statusInfo = STATUS_LABELS[match.status] || STATUS_LABELS.pending;
+                          const statusInfo = getStatusInfo(match.status);
                           const homeGroup = groupMap.get(match.homeGroupId);
                           const awayGroup = groupMap.get(match.awayGroupId);
 
@@ -409,7 +410,7 @@ function ScheduleContent() {
                                 <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                                   <span className="inline-flex min-w-0 self-start items-start gap-1 pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap">
                                     {isMine && !isFinished && <Star className="w-2.5 h-2.5 shrink-0 text-yellow-500 fill-yellow-400" />}
-                                    <span className="truncate">{MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}</span>
+                                    <span className="truncate">{t("schedule.matchCourt", { type: matchTypeLabel(t, match.matchType), n: match.courtNumber })}</span>
                                   </span>
                                   <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                     <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -422,7 +423,7 @@ function ScheduleContent() {
                                     )}
                                     <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                                   </div>
-                                  <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{statusInfo.label}</span>
+                                  <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{t(statusInfo.labelKey)}</span>
                                 </div>
                                 <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
                                   <div className="min-w-0 squircle-xs bg-white/36 px-2 py-1.5">
@@ -451,10 +452,10 @@ function ScheduleContent() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50/60">
-                      <th className="p-3 text-left font-semibold text-green-800 sticky left-0 bg-green-50/60 z-10 min-w-[84px] whitespace-nowrap">轮次</th>
+                      <th className="p-3 text-left font-semibold text-green-800 sticky left-0 bg-green-50/60 z-10 min-w-[84px] whitespace-nowrap">{t("schedule.roundColumn")}</th>
                       {Array.from({ length: maxCourt }, (_, i) => (
                         <th key={i} className="p-3 text-center font-semibold text-green-800 min-w-[200px]">
-                          场地 {i + 1}
+                          {t("schedule.courtSpaced", { n: i + 1 })}
                         </th>
                       ))}
                     </tr>
@@ -466,7 +467,7 @@ function ScheduleContent() {
 
                       return (
                         <tr key={roundNum} className="border-b border-gray-100/80 hover:bg-green-50/20">
-                          <td className="p-3 sticky left-0 bg-white z-10 font-semibold text-green-700 whitespace-nowrap">第{roundNum}轮</td>
+                          <td className="p-3 sticky left-0 bg-white z-10 font-semibold text-green-700 whitespace-nowrap">{t("schedule.roundShort", { n: roundNum })}</td>
                           {Array.from({ length: maxCourt }, (_, courtIdx) => {
                             const match = roundMatches.find((m) => m.courtNumber === courtIdx + 1);
                             if (!match) return <td key={courtIdx} className="p-2 text-center text-gray-300">—</td>;
@@ -484,7 +485,7 @@ function ScheduleContent() {
                                     : match.matchType === "XD"
                                       ? "bg-purple-50/90"
                                       : "bg-white/90";
-                            const statusInfo = STATUS_LABELS[match.status] || STATUS_LABELS.pending;
+                            const statusInfo = getStatusInfo(match.status);
                             const homeGroup = groupMap.get(match.homeGroupId);
                             const awayGroup = groupMap.get(match.awayGroupId);
 
@@ -495,7 +496,7 @@ function ScheduleContent() {
                                     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                                       <span className="inline-flex min-w-0 self-start items-start gap-1 pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap">
                                         {isMine && !isFinished && <Star className="w-2.5 h-2.5 shrink-0 text-yellow-500 fill-yellow-400" />}
-                                        <span className="truncate">{MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}</span>
+                                        <span className="truncate">{t("schedule.matchCourt", { type: matchTypeLabel(t, match.matchType), n: match.courtNumber })}</span>
                                       </span>
                                       <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                         <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -508,7 +509,7 @@ function ScheduleContent() {
                                         )}
                                         <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                                       </div>
-                                      <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{statusInfo.label}</span>
+                                      <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{t(statusInfo.labelKey)}</span>
                                     </div>
                                     <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
                                       <div className="min-w-0 squircle-xs bg-white/36 px-2 py-1.5">
@@ -541,14 +542,14 @@ function ScheduleContent() {
 
             return (
               <div key={roundNum}>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2.5">第 {roundNum} 轮</h3>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2.5">{t("schedule.roundTitle", { n: roundNum })}</h3>
                 <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
                   {roundMatches.map((match) => {
                     const homeGroup = groupMap.get(match.homeGroupId);
                     const awayGroup = groupMap.get(match.awayGroupId);
                     const isFinished = match.status === "finished";
                     const isMine = isMyMatch(match);
-                    const statusInfo = STATUS_LABELS[match.status] || STATUS_LABELS.pending;
+                    const statusInfo = getStatusInfo(match.status);
                     const colorClass = isFinished
                       ? "bg-white/90 opacity-72"
                       : isMine
@@ -567,7 +568,7 @@ function ScheduleContent() {
                             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                               <span className="inline-flex min-w-0 self-start items-start gap-1 pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap">
                                 {isMine && !isFinished && <Star className="w-2.5 h-2.5 shrink-0 text-yellow-500 fill-yellow-400" />}
-                                <span className="truncate">{MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}</span>
+                                <span className="truncate">{t("schedule.matchCourt", { type: matchTypeLabel(t, match.matchType), n: match.courtNumber })}</span>
                               </span>
                               <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                 <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -581,7 +582,7 @@ function ScheduleContent() {
                                 <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                               </div>
                               <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>
-                                {statusInfo.label}
+                                {t(statusInfo.labelKey)}
                               </span>
                             </div>
                             <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
@@ -607,9 +608,14 @@ function ScheduleContent() {
   );
 }
 
+function ScheduleFallback() {
+  const t = useT();
+  return <div className="text-center py-12 text-muted-foreground">{t("schedule.loading")}</div>;
+}
+
 export default function SchedulePage() {
   return (
-    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">加载中...</div>}>
+    <Suspense fallback={<ScheduleFallback />}>
       <ScheduleContent />
     </Suspense>
   );

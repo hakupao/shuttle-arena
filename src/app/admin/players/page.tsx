@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTournament } from "@/lib/tournament-context";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { PositionBadge } from "@/components/player/position-label";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { toast } from "sonner";
+import { useT } from "@/i18n/provider";
 import { Users, UserCheck, Link2, UserPlus, Trash2 } from "lucide-react";
 
 interface BoundUser {
@@ -50,6 +51,11 @@ interface UsersResponse {
 }
 
 function PlayersContent() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const tournamentId = currentId ? String(currentId) : "";
   const [groups, setGroups] = useState<GroupWithPlayers[]>([]);
@@ -80,7 +86,7 @@ function PlayersContent() {
       setGroups(groupsData.groups || []);
       setRegisteredUsers((usersData.users || []).filter((u: RegisteredUser) => u.role === "athlete"));
     } catch {
-      toast.error("加载失败");
+      toast.error(tRef.current("adminPlayers.loadFailed"));
     } finally {
       if (selectedTournamentId !== undefined) {
         setLoadedTournamentId(selectedTournamentId ?? null);
@@ -119,9 +125,9 @@ function PlayersContent() {
 
   const getCurrentUserLabel = (player: Player): string => {
     const uid = getCurrentUserId(player);
-    if (!uid) return "未绑定";
+    if (!uid) return t("adminPlayers.unbound");
     const user = registeredUsers.find((u) => String(u.id) === uid);
-    return user ? user.username : "未绑定";
+    return user ? user.username : t("adminPlayers.unbound");
   };
 
   // Find which user IDs are already bound
@@ -170,16 +176,16 @@ function PlayersContent() {
       });
 
       if (res.ok) {
-        toast.success(`已保存 ${assignments.length} 项修改`);
+        toast.success(t("adminPlayers.savedChanges", { n: assignments.length }));
         setNameEdits({});
         setUserEdits({});
         fetchData();
       } else {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "保存失败");
+        toast.error(data.error || t("adminPlayers.saveFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminPlayers.networkError"));
     } finally {
       setSaving(false);
     }
@@ -207,14 +213,14 @@ function PlayersContent() {
         body: JSON.stringify({ groupId, positionNumber }),
       });
       if (res.ok) {
-        toast.success("已添加轮换位置");
+        toast.success(t("adminPlayers.alternateAdded"));
         fetchData();
       } else {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "添加失败");
+        toast.error(data.error || t("adminPlayers.addFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminPlayers.networkError"));
     }
   };
 
@@ -227,14 +233,14 @@ function PlayersContent() {
         body: JSON.stringify({ playerId }),
       });
       if (res.ok) {
-        toast.success("已删除轮换");
+        toast.success(t("adminPlayers.alternateRemoved"));
         fetchData();
       } else {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "删除失败");
+        toast.error(data.error || t("adminPlayers.removeFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminPlayers.networkError"));
     }
   };
 
@@ -251,23 +257,23 @@ function PlayersContent() {
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminPlayers.loading")}</div>;
   }
 
   if (groups.length === 0) {
     return (
       <div className="admin-page-shell">
         <AdminPageHeader
-          title="运动员设置"
+          title={t("adminPlayers.title")}
           icon={Users}
           iconClassName="w-4.5 h-4.5 text-sky-600"
         />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-12 text-center">
             <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">{currentId ? "暂无小组数据" : "尚未选择赛事"}</p>
+            <p className="text-gray-500">{currentId ? t("adminPlayers.noGroups") : t("adminPlayers.noTournament")}</p>
             <p className="text-sm text-gray-400 mt-2">
-              {currentId ? "请先在赛制设置中完成分组编制" : "请先回到管理后台选择一个赛事"}
+              {currentId ? t("adminPlayers.noGroupsHint") : t("adminPlayers.noTournamentHint")}
             </p>
           </CardContent>
         </Card>
@@ -291,10 +297,10 @@ function PlayersContent() {
   return (
     <div className="admin-page-shell">
       <AdminPageHeader
-        title="运动员设置"
+        title={t("adminPlayers.title")}
         icon={Users}
         iconClassName="w-4.5 h-4.5 text-sky-600"
-        extraBadge={<span className="text-xs text-gray-400">绑定 {boundPlayers}/{totalPlayers} · 命名 {namedPlayers}/{totalPlayers}</span>}
+        extraBadge={<span className="text-xs text-gray-400">{t("adminPlayers.badgeSummary", { bound: boundPlayers, named: namedPlayers, total: totalPlayers })}</span>}
         actions={(
           <div className="flex flex-wrap gap-2">
             <Button
@@ -303,7 +309,7 @@ function PlayersContent() {
               className="border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-200"
               onClick={handleClearAll}
             >
-              清空所有
+              {t("adminPlayers.clearAll")}
             </Button>
             <Button
               size="sm"
@@ -311,7 +317,7 @@ function PlayersContent() {
               onClick={handleSave}
               disabled={!hasChanges || saving}
             >
-              {saving ? "保存中..." : `保存修改 ${hasChanges ? `(${Object.keys(nameEdits).length + Object.keys(userEdits).length})` : ""}`}
+              {saving ? t("adminPlayers.saving") : hasChanges ? t("adminPlayers.saveChangesCount", { n: Object.keys(nameEdits).length + Object.keys(userEdits).length }) : t("adminPlayers.saveChanges")}
             </Button>
           </div>
         )}
@@ -321,11 +327,11 @@ function PlayersContent() {
       <div className="flex flex-wrap gap-3">
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <Link2 className="w-4 h-4 text-blue-500" />
-          <span>已注册运动员: {registeredUsers.length}</span>
+          <span>{t("adminPlayers.registeredAthletes", { n: registeredUsers.length })}</span>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-gray-500">
           <UserCheck className="w-4 h-4 text-green-500" />
-          <span>已绑定: {boundPlayers}/{totalPlayers}</span>
+          <span>{t("adminPlayers.boundStat", { bound: boundPlayers, total: totalPlayers })}</span>
         </div>
       </div>
 
@@ -366,7 +372,7 @@ function PlayersContent() {
                         }`}
                       />
                       <Input
-                        placeholder={isAlternate ? "轮换姓名" : `输入姓名（默认${group.icon}${player.positionNumber}号位）`}
+                        placeholder={isAlternate ? t("adminPlayers.alternateNamePlaceholder") : t("adminPlayers.namePlaceholder", { icon: group.icon, n: player.positionNumber })}
                         value={getDisplayName(player)}
                         onChange={(e) => handleNameChange(player.id, e.target.value)}
                         className="h-8 min-w-0 text-sm border-gray-200 focus:border-green-400 focus:ring-green-400"
@@ -384,12 +390,12 @@ function PlayersContent() {
                                   <span className="truncate">{getCurrentUserLabel(player)}</span>
                                 </span>
                               ) : (
-                                <span className="truncate text-gray-400">绑定账号（可选）</span>
+                                <span className="truncate text-gray-400">{t("adminPlayers.bindAccountOptional")}</span>
                               )}
                             </span>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">手动填写姓名，不绑定账号</SelectItem>
+                            <SelectItem value="none">{t("adminPlayers.noBinding")}</SelectItem>
                             {registeredUsers.map((u) => {
                               const isBound = boundUserIds.has(u.id) && String(u.id) !== currentUid;
                               return (
@@ -398,7 +404,7 @@ function PlayersContent() {
                                   value={String(u.id)}
                                   disabled={isBound}
                                 >
-                                  {u.username} {isBound ? "(已绑定)" : ""}
+                                  {u.username} {isBound ? t("adminPlayers.boundSuffix") : ""}
                                 </SelectItem>
                               );
                             })}
@@ -408,7 +414,7 @@ function PlayersContent() {
                       <div className="w-7 flex justify-center">
                         {isAlternate ? (
                           <button
-                            title="删除轮换"
+                            title={t("adminPlayers.removeAlternate")}
                             onClick={() => handleRemoveAlternate(player.id)}
                             className="p-1 text-gray-300 hover:text-red-500 transition-colors"
                           >
@@ -416,7 +422,7 @@ function PlayersContent() {
                           </button>
                         ) : !alternate ? (
                           <button
-                            title="添加轮换"
+                            title={t("adminPlayers.addAlternate")}
                             onClick={() => handleAddAlternate(group.id, posNum)}
                             className="p-1 text-gray-300 hover:text-amber-600 transition-colors"
                           >
@@ -445,13 +451,13 @@ function PlayersContent() {
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)]">
           <div className="flex items-center gap-2 whitespace-nowrap squircle-pill border border-green-200 bg-white/95 backdrop-blur-sm shadow-xl pl-4 pr-1.5 py-1.5">
             <span className="text-xs font-medium text-gray-600">
-              {Object.keys(nameEdits).length + Object.keys(userEdits).length} 项修改
+              {t("adminPlayers.changesCount", { n: Object.keys(nameEdits).length + Object.keys(userEdits).length })}
             </span>
             <button
               className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 squircle-pill transition-colors"
               onClick={() => { setNameEdits({}); setUserEdits({}); }}
             >
-              撤销
+              {t("adminPlayers.undo")}
             </button>
             <Button
               size="sm"
@@ -459,7 +465,7 @@ function PlayersContent() {
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? "保存中..." : "保存"}
+              {saving ? t("adminPlayers.saving") : t("adminPlayers.save")}
             </Button>
           </div>
         </div>
@@ -469,8 +475,9 @@ function PlayersContent() {
 }
 
 export default function PlayersPage() {
+  const t = useT();
   return (
-    <Suspense fallback={<div className="text-center py-12 text-gray-400">加载中...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-gray-400">{t("adminPlayers.loading")}</div>}>
       <PlayersContent />
     </Suspense>
   );

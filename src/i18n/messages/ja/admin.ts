@@ -1,0 +1,47 @@
+import type { Messages } from "../zh";
+
+const admin: Messages["admin"] = {
+  title: "管理画面",
+  defaultTournamentName: "トーナメント {date}",
+  tournamentCount: "{n} 件の大会",
+  newTournament: "大会を作成",
+  creating: "作成中...",
+  createSuccess: "大会を作成しました！",
+  createFailed: "作成に失敗しました",
+  statusDraft: "準備中",
+  statusActive: "開催中",
+  statusFinished: "終了",
+  statusArchived: "アーカイブ済み",
+  statusChanged: "大会のステータスを「{status}」に変更しました",
+  statusChangeFailed: "ステータスの変更に失敗しました",
+  networkError: "ネットワークエラー",
+  deleteConfirm: "「{name}」を削除しますか？この操作は元に戻せません。",
+  deleted: "大会を削除しました",
+  deleteFailed: "削除に失敗しました",
+  archiveConfirm: "アーカイブするとデータは凍結され、変更や削除ができなくなります。アーカイブしますか？",
+  dateTbd: "日程未定",
+  courtsCount: "コート {n} 面",
+  start: "開始",
+  end: "終了",
+  archive: "アーカイブ",
+  reset: "リセット",
+  empty: "大会がありません。「大会を作成」から始めましょう",
+  sections: {
+    settings: "大会設定",
+    rules: "ルール設定",
+    teams: "チーム設定",
+    schedule: "日程管理",
+    players: "選手",
+    lottery: "抽選・組分け",
+    swap: "選手交代",
+    scoring: "スコア入力",
+    users: "アカウント管理",
+  },
+  redirect: {
+    loading: "読み込み中...",
+    redirecting: "移動中...",
+    toSchedule: "新しい日程管理ページに移動しています...",
+  },
+};
+
+export default admin;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -39,26 +39,16 @@ import {
   DEFAULT_MAX_CONSECUTIVE_RESTING_LIMIT,
 } from "@/lib/constants";
 import { parseIntegerInput, sanitizeIntegerInput } from "@/lib/utils";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
-
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel, scoringModeLabel } from "@/i18n/labels";
 
 const STATUS_MAP = {
-  pending: { label: "待开始", color: "text-gray-500", icon: Clock },
-  in_progress: { label: "进行中", color: "text-amber-600", icon: AlertCircle },
-  finished: { label: "已完成", color: "text-green-600", icon: CheckCircle },
+  pending: { labelKey: "adminSchedule.statusPending", color: "text-gray-500", icon: Clock },
+  in_progress: { labelKey: "adminSchedule.statusInProgress", color: "text-amber-600", icon: AlertCircle },
+  finished: { labelKey: "adminSchedule.statusFinished", color: "text-green-600", icon: CheckCircle },
 } as const;
 
-const SCORING_OPTIONS = [
-  { value: "single_21", label: "一局 21 分" },
-  { value: "single_30", label: "一局 30 分" },
-  { value: "best_of_3_15", label: "三局两胜 15 分" },
-  { value: "best_of_3_21", label: "三局两胜 21 分" },
-];
+const SCORING_OPTION_VALUES = ["single_21", "single_30", "best_of_3_15", "best_of_3_21"] as const;
 
 interface Tournament {
   id: number;
@@ -175,6 +165,11 @@ function formatDuration(minutes: number) {
 }
 
 export default function AdminSchedulePage() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const tournamentId = currentId ? String(currentId) : "";
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -253,7 +248,7 @@ export default function AdminSchedulePage() {
 
       setBoardTab((scheduleData.matches || []).length > 0 ? "official" : "draft");
     } catch {
-      toast.error("加载赛程安排失败");
+      toast.error(tRef.current("adminSchedule.loadFailed"));
     } finally {
       if (selectedTournamentId !== undefined) {
         setLoadedTournamentId(selectedTournamentId ?? null);
@@ -281,7 +276,7 @@ export default function AdminSchedulePage() {
     const player = playerMap.get(playerId);
     if (!player) return "?";
     const group = groupMap.get(player.groupId);
-    return player.name || `${group?.icon || ""}${player.positionNumber}号`;
+    return player.name || `${group?.icon || ""}${player.positionNumber}${t("common.position.suffix")}`;
   };
 
   const updateForm = (field: keyof FormState, value: string) => {
@@ -309,7 +304,7 @@ export default function AdminSchedulePage() {
 
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "保存排程参数失败");
+        toast.error(data.error || t("adminSchedule.saveFailed"));
         return false;
       }
 
@@ -318,10 +313,10 @@ export default function AdminSchedulePage() {
         setTournament(data.tournament);
       }
 
-      toast.success("排程参数已保存");
+      toast.success(t("adminSchedule.saved"));
       return true;
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminSchedule.networkError"));
       return false;
     } finally {
       setSaving(false);
@@ -347,7 +342,7 @@ export default function AdminSchedulePage() {
 
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "运行模拟失败");
+        toast.error(data.error || t("adminSchedule.simulateFailed"));
         return;
       }
 
@@ -362,9 +357,9 @@ export default function AdminSchedulePage() {
       setSimulationDirty(false);
       setBoardTab("draft");
       setDraftTab("overview");
-      toast.success("模拟稿已生成，可以检查后发布为正式赛程");
+      toast.success(t("adminSchedule.simulated"));
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminSchedule.networkError"));
     } finally {
       setSimulating(false);
     }
@@ -374,8 +369,8 @@ export default function AdminSchedulePage() {
     if (!tournamentId || !simulation || simulationDirty) return;
 
     const confirmMessage = matches.length > 0
-      ? "重新发布正式赛程会覆盖当前正式赛程，并删除已有比分、裁判记录、得分时间线。确定继续吗？"
-      : "确定要将当前模拟稿发布为正式赛程吗？";
+      ? t("adminSchedule.confirmRepublish")
+      : t("adminSchedule.confirmPublish");
 
     if (!confirm(confirmMessage)) return;
 
@@ -391,15 +386,15 @@ export default function AdminSchedulePage() {
 
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "发布正式赛程失败");
+        toast.error(data.error || t("adminSchedule.publishFailed"));
         return;
       }
 
-      toast.success("模拟稿已发布为正式赛程");
+      toast.success(t("adminSchedule.published"));
       await fetchData();
       setBoardTab("official");
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminSchedule.networkError"));
     } finally {
       setPublishing(false);
     }
@@ -412,20 +407,20 @@ export default function AdminSchedulePage() {
   const totalPending = matches.filter((match) => match.status === "pending").length;
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
+    return <div className="text-center py-12 text-muted-foreground">{t("adminSchedule.loading")}</div>;
   }
 
   if (!tournamentId || !tournament) {
     return (
       <div className="admin-page-shell">
         <AdminPageHeader
-          title="赛程安排"
+          title={t("adminSchedule.title")}
           icon={CalendarDays}
           iconClassName="w-5 h-5 text-amber-600"
         />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-12 text-center text-gray-500">
-            请先回到管理后台选择一个赛事
+            {t("adminSchedule.selectTournamentFirst")}
           </CardContent>
         </Card>
       </div>
@@ -435,7 +430,7 @@ export default function AdminSchedulePage() {
   return (
     <div className="admin-page-shell">
       <AdminPageHeader
-        title="赛程安排"
+        title={t("adminSchedule.title")}
         icon={CalendarDays}
         iconClassName="w-5 h-5 text-amber-600"
         actions={(
@@ -448,7 +443,7 @@ export default function AdminSchedulePage() {
               className="border-amber-200 text-amber-700 hover:bg-amber-50"
             >
               <Save className="w-3.5 h-3.5 mr-1" />
-              {saving ? "保存中..." : "保存排程参数"}
+              {saving ? t("adminSchedule.saving") : t("adminSchedule.saveParams")}
             </Button>
             <Button
               size="sm"
@@ -457,7 +452,7 @@ export default function AdminSchedulePage() {
               className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               <Play className="w-3.5 h-3.5 mr-1" />
-              {simulating ? "模拟中..." : "运行模拟"}
+              {simulating ? t("adminSchedule.simulating") : t("adminSchedule.runSimulation")}
             </Button>
           </div>
         )}
@@ -469,12 +464,12 @@ export default function AdminSchedulePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base text-gray-800 flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-amber-500" />
-                排程参数
+                {t("adminSchedule.paramsTitle")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-gray-600 font-medium">场地数</Label>
+                <Label className="text-gray-600 font-medium">{t("adminSchedule.courtsCount")}</Label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -486,7 +481,7 @@ export default function AdminSchedulePage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-600 font-medium">每轮时间（分钟）</Label>
+                <Label className="text-gray-600 font-medium">{t("adminSchedule.roundMinutes")}</Label>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -498,7 +493,7 @@ export default function AdminSchedulePage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-600 font-medium">计分方式</Label>
+                <Label className="text-gray-600 font-medium">{t("adminSchedule.scoringMode")}</Label>
                 <Select
                   value={form.scoringMode}
                   onValueChange={(value) => value && updateForm("scoringMode", value)}
@@ -507,9 +502,9 @@ export default function AdminSchedulePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SCORING_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
+                    {SCORING_OPTION_VALUES.map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {scoringModeLabel(t, value)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -517,7 +512,7 @@ export default function AdminSchedulePage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-600 font-medium">追分规则</Label>
+                <Label className="text-gray-600 font-medium">{t("adminSchedule.deuce")}</Label>
                 <Select
                   value={form.deuceEnabled ? "on" : "off"}
                   onValueChange={(value) => {
@@ -529,15 +524,15 @@ export default function AdminSchedulePage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="on">开启（需领先 2 分）</SelectItem>
-                    <SelectItem value="off">关闭（达到分数即胜）</SelectItem>
+                    <SelectItem value="on">{t("adminSchedule.deuceOn")}</SelectItem>
+                    <SelectItem value="off">{t("adminSchedule.deuceOff")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-gray-600 font-medium">连续上场上限</Label>
+                  <Label className="text-gray-600 font-medium">{t("adminSchedule.maxPlaying")}</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -548,7 +543,7 @@ export default function AdminSchedulePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-gray-600 font-medium">连续轮空上限</Label>
+                  <Label className="text-gray-600 font-medium">{t("adminSchedule.maxResting")}</Label>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -561,7 +556,10 @@ export default function AdminSchedulePage() {
               </div>
 
               <div className="squircle-card border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-900">
-                比赛时段来自“赛事设置”：当前窗口 {tournament.startTime || "09:00"} - {tournament.endTime || "19:00"}。
+                {t("adminSchedule.timeWindowNote", {
+                  start: tournament.startTime || "09:00",
+                  end: tournament.endTime || "19:00",
+                })}
               </div>
             </CardContent>
           </Card>
@@ -570,7 +568,7 @@ export default function AdminSchedulePage() {
             <CardContent className="py-4 text-sm text-indigo-900 flex items-start gap-2">
               <Info className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
-                连续上场/轮空上限只作用于当前模拟稿的质量评估；正式赛程发布后，会严格落刚才那份模拟稿，不会再次随机生成。
+                {t("adminSchedule.noteQuality")}
               </div>
             </CardContent>
           </Card>
@@ -579,8 +577,7 @@ export default function AdminSchedulePage() {
             <CardContent className="py-4 text-sm text-red-900 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
-                重新发布正式赛程会覆盖当前正式赛程，并删除已有比分、裁判记录、得分时间线。
-                如果你修改了左侧参数，必须重新运行模拟后才能发布。
+                {t("adminSchedule.noteRepublish")}
               </div>
             </CardContent>
           </Card>
@@ -593,10 +590,10 @@ export default function AdminSchedulePage() {
         >
           <TabsList className="grid w-full grid-cols-2 bg-amber-50 border border-amber-100">
             <TabsTrigger value="draft" className="data-[state=active]:bg-white data-[state=active]:text-amber-700">
-              模拟稿
+              {t("adminSchedule.tabDraft")}
             </TabsTrigger>
             <TabsTrigger value="official" className="data-[state=active]:bg-white data-[state=active]:text-amber-700">
-              正式赛程
+              {t("adminSchedule.tabOfficial")}
             </TabsTrigger>
           </TabsList>
 
@@ -605,8 +602,8 @@ export default function AdminSchedulePage() {
               <Card className="border-dashed border-2 border-amber-200 bg-amber-50/30">
                 <CardContent className="py-16 text-center">
                   <CalendarDays className="w-12 h-12 text-amber-300 mx-auto mb-4" />
-                  <p className="text-gray-700 text-lg font-bold mb-2">先运行模拟，生成一份可检查的赛程草稿</p>
-                  <p className="text-gray-400 text-sm">草稿只在当前页面内存中保存，确认无误后再发布为正式赛程。</p>
+                  <p className="text-gray-700 text-lg font-bold mb-2">{t("adminSchedule.draftEmptyTitle")}</p>
+                  <p className="text-gray-400 text-sm">{t("adminSchedule.draftEmptyDesc")}</p>
                 </CardContent>
               </Card>
             ) : (
@@ -614,11 +611,11 @@ export default function AdminSchedulePage() {
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-                      模拟稿 {simulation.totalMatches} 场 / {simulation.totalRounds} 轮
+                      {t("adminSchedule.draftBadge", { matches: simulation.totalMatches, rounds: simulation.totalRounds })}
                     </Badge>
                     {simulationDirty && (
                       <Badge className="bg-rose-100 text-rose-700">
-                        参数已变更，请重新运行模拟
+                        {t("adminSchedule.dirtyBadge")}
                       </Badge>
                     )}
                   </div>
@@ -628,7 +625,7 @@ export default function AdminSchedulePage() {
                     className="bg-green-600 hover:bg-green-700 text-white gap-1"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    {publishing ? "发布中..." : "发布为正式赛程"}
+                    {publishing ? t("adminSchedule.publishing") : t("adminSchedule.publish")}
                   </Button>
                 </div>
 
@@ -639,13 +636,13 @@ export default function AdminSchedulePage() {
                 >
                   <TabsList className="grid w-full grid-cols-3 bg-green-50 border border-green-100">
                     <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-green-700">
-                      总览
+                      {t("adminSchedule.tabOverview")}
                     </TabsTrigger>
                     <TabsTrigger value="schedule" className="data-[state=active]:bg-white data-[state=active]:text-green-700">
-                      赛程矩阵
+                      {t("adminSchedule.tabMatrix")}
                     </TabsTrigger>
                     <TabsTrigger value="quality" className="data-[state=active]:bg-white data-[state=active]:text-green-700">
-                      质量报告
+                      {t("adminSchedule.tabQuality")}
                     </TabsTrigger>
                   </TabsList>
 
@@ -654,13 +651,13 @@ export default function AdminSchedulePage() {
                       <Card className="border-0 shadow-md bg-gradient-to-br from-green-50 to-emerald-50">
                         <CardContent className="pt-4 pb-3 text-center">
                           <div className="text-3xl font-extrabold text-green-600">{simulation.totalMatches}</div>
-                          <div className="text-xs text-gray-500 mt-1 font-medium">总比赛场次</div>
+                          <div className="text-xs text-gray-500 mt-1 font-medium">{t("adminSchedule.statTotalMatches")}</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-cyan-50">
                         <CardContent className="pt-4 pb-3 text-center">
                           <div className="text-3xl font-extrabold text-blue-600">{simulation.totalRounds}</div>
-                          <div className="text-xs text-gray-500 mt-1 font-medium">总轮次</div>
+                          <div className="text-xs text-gray-500 mt-1 font-medium">{t("adminSchedule.statTotalRounds")}</div>
                         </CardContent>
                       </Card>
                       <Card className={`border-0 shadow-md ${simulation.isOverTime ? "bg-gradient-to-br from-red-50 to-orange-50" : "bg-gradient-to-br from-amber-50 to-yellow-50"}`}>
@@ -668,7 +665,7 @@ export default function AdminSchedulePage() {
                           <div className={`text-3xl font-extrabold ${simulation.isOverTime ? "text-red-500" : "text-amber-600"}`}>
                             {formatDuration(simulation.estimatedDurationMinutes)}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 font-medium">预计时长</div>
+                          <div className="text-xs text-gray-500 mt-1 font-medium">{t("adminSchedule.statEstimated")}</div>
                         </CardContent>
                       </Card>
                       <Card className="border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50">
@@ -676,7 +673,7 @@ export default function AdminSchedulePage() {
                           <div className="text-3xl font-extrabold text-purple-600">
                             {formatDuration(simulation.availableMinutes)}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1 font-medium">可用时间</div>
+                          <div className="text-xs text-gray-500 mt-1 font-medium">{t("adminSchedule.statAvailable")}</div>
                         </CardContent>
                       </Card>
                     </div>
@@ -686,7 +683,7 @@ export default function AdminSchedulePage() {
                         <CardHeader className="pb-2">
                           <CardTitle className="text-base text-amber-700 flex items-center gap-1.5">
                             <AlertTriangle className="w-4 h-4" />
-                            注意事项
+                            {t("adminSchedule.warningsTitle")}
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -702,8 +699,8 @@ export default function AdminSchedulePage() {
                     <Card className={simulation.isOverTime ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}>
                       <CardContent className="py-4 text-center font-bold">
                         {simulation.isOverTime
-                          ? "❌ 当前模拟稿超时，请调整参数后重试"
-                          : "✅ 当前模拟稿可以在时间窗口内完成"}
+                          ? t("adminSchedule.overTime")
+                          : t("adminSchedule.withinTime")}
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -738,9 +735,9 @@ export default function AdminSchedulePage() {
               <Card className="border-dashed border-border/50">
                 <CardContent className="py-12 text-center">
                   <CalendarDays className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-muted-foreground">正式赛程尚未发布</p>
+                  <p className="text-muted-foreground">{t("adminSchedule.officialEmpty")}</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    先在左侧调整排程参数并运行模拟，确认后再将模拟稿发布为正式赛程。
+                    {t("adminSchedule.officialEmptyDesc")}
                   </p>
                 </CardContent>
               </Card>
@@ -750,25 +747,25 @@ export default function AdminSchedulePage() {
                   <Card className="border-gray-100">
                     <CardContent className="py-3 text-center">
                       <div className="text-2xl font-bold text-gray-800">{matches.length}</div>
-                      <div className="text-xs text-muted-foreground">总场次</div>
+                      <div className="text-xs text-muted-foreground">{t("adminSchedule.statMatches")}</div>
                     </CardContent>
                   </Card>
                   <Card className="border-gray-100">
                     <CardContent className="py-3 text-center">
                       <div className="text-2xl font-bold text-gray-800">{maxRound}</div>
-                      <div className="text-xs text-muted-foreground">总轮次</div>
+                      <div className="text-xs text-muted-foreground">{t("adminSchedule.statTotalRounds")}</div>
                     </CardContent>
                   </Card>
                   <Card className="border-green-100">
                     <CardContent className="py-3 text-center">
                       <div className="text-2xl font-bold text-green-600">{totalFinished}</div>
-                      <div className="text-xs text-muted-foreground">已完成</div>
+                      <div className="text-xs text-muted-foreground">{t("adminSchedule.statFinished")}</div>
                     </CardContent>
                   </Card>
                   <Card className="border-amber-100">
                     <CardContent className="py-3 text-center">
                       <div className="text-2xl font-bold text-amber-600">{totalPending}</div>
-                      <div className="text-xs text-muted-foreground">待进行</div>
+                      <div className="text-xs text-muted-foreground">{t("adminSchedule.statPending")}</div>
                     </CardContent>
                   </Card>
                 </div>
@@ -780,7 +777,7 @@ export default function AdminSchedulePage() {
                     className={officialViewMode === "matrix" ? "bg-amber-600 hover:bg-amber-700" : ""}
                     onClick={() => setOfficialViewMode("matrix")}
                   >
-                    <LayoutGrid className="w-3.5 h-3.5 mr-1" /> 矩阵
+                    <LayoutGrid className="w-3.5 h-3.5 mr-1" /> {t("adminSchedule.viewMatrix")}
                   </Button>
                   <Button
                     variant={officialViewMode === "list" ? "default" : "outline"}
@@ -788,7 +785,7 @@ export default function AdminSchedulePage() {
                     className={officialViewMode === "list" ? "bg-amber-600 hover:bg-amber-700" : ""}
                     onClick={() => setOfficialViewMode("list")}
                   >
-                    <List className="w-3.5 h-3.5 mr-1" /> 列表
+                    <List className="w-3.5 h-3.5 mr-1" /> {t("adminSchedule.viewList")}
                   </Button>
                 </div>
 
@@ -806,7 +803,7 @@ export default function AdminSchedulePage() {
                               key={`court-head-${index + 1}`}
                               className="px-1 py-2 text-[10px] font-semibold tracking-tight text-amber-700 text-center whitespace-nowrap"
                             >
-                              场地{index + 1}
+                              {t("adminSchedule.courtN", { n: index + 1 })}
                             </div>
                           ))}
                         </div>
@@ -827,7 +824,7 @@ export default function AdminSchedulePage() {
                                 onClick={() => setExpandedRound(isExpanded ? null : roundNumber)}
                               >
                                 <div className={`px-1 py-2 text-[11px] leading-none font-bold text-center flex items-center justify-center whitespace-nowrap ${allDone ? "text-green-600" : "text-amber-700"}`}>
-                                  第{roundNumber}轮
+                                  {t("adminSchedule.roundN", { n: roundNumber })}
                                 </div>
                                 {Array.from({ length: maxCourt }, (_, courtIndex) => {
                                   const match = roundMatches.find((item) => item.courtNumber === courtIndex + 1);
@@ -863,7 +860,7 @@ export default function AdminSchedulePage() {
                                           </div>
                                         ) : (
                                           <div className="mt-0.5 text-[8px] text-gray-400 whitespace-nowrap">
-                                            {MATCH_TYPE_LABELS[match.matchType]}
+                                            {matchTypeLabel(t, match.matchType)}
                                           </div>
                                         )}
                                       </div>
@@ -894,7 +891,7 @@ export default function AdminSchedulePage() {
                                         <div className={`squircle-lg border border-transparent px-3 py-2.5 ${colorClass} hover:shadow-sm transition-all cursor-pointer`}>
                                           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                                             <span className="min-w-0 self-start pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap truncate">
-                                              {MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}
+                                              {matchTypeLabel(t, match.matchType)} · {t("adminSchedule.courtN", { n: match.courtNumber })}
                                             </span>
                                             <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                               <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -907,7 +904,7 @@ export default function AdminSchedulePage() {
                                               )}
                                               <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                                             </div>
-                                            <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{statusInfo.label}</span>
+                                            <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{t(statusInfo.labelKey)}</span>
                                           </div>
                                           <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
                                             <span className="text-[10px] text-gray-500 min-w-0 squircle-xs bg-white/36 px-2 py-1.5 leading-[1.45]">
@@ -936,11 +933,11 @@ export default function AdminSchedulePage() {
                             <thead>
                               <tr className="border-b border-amber-100 bg-amber-50/60">
                                 <th className="p-3 text-left font-semibold text-amber-800 sticky left-0 bg-amber-50/60 z-10 min-w-[84px] whitespace-nowrap">
-                                  轮次
+                                  {t("adminSchedule.roundHeader")}
                                 </th>
                                 {Array.from({ length: maxCourt }, (_, index) => (
                                   <th key={`desktop-court-${index + 1}`} className="p-3 text-center font-semibold text-amber-800 min-w-[200px]">
-                                    场地 {index + 1}
+                                    {t("adminSchedule.courtNSpaced", { n: index + 1 })}
                                   </th>
                                 ))}
                               </tr>
@@ -953,7 +950,7 @@ export default function AdminSchedulePage() {
                                 return (
                                   <tr key={`desktop-round-${roundNumber}`} className="border-b border-gray-100 hover:bg-amber-50/20">
                                     <td className="p-3 sticky left-0 bg-white z-10 font-semibold text-amber-700 whitespace-nowrap">
-                                      第{roundNumber}轮
+                                      {t("adminSchedule.roundN", { n: roundNumber })}
                                     </td>
                                     {Array.from({ length: maxCourt }, (_, courtIndex) => {
                                       const match = roundMatches.find((item) => item.courtNumber === courtIndex + 1);
@@ -985,7 +982,7 @@ export default function AdminSchedulePage() {
                                             <div className={`squircle-lg border border-transparent px-3 py-2.5 ${colorClass} hover:shadow-sm transition-all cursor-pointer`}>
                                               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                                                 <span className="min-w-0 self-start pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap truncate">
-                                                  {MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}
+                                                  {matchTypeLabel(t, match.matchType)} · {t("adminSchedule.courtN", { n: match.courtNumber })}
                                                 </span>
                                                 <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                                   <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -998,7 +995,7 @@ export default function AdminSchedulePage() {
                                                   )}
                                                   <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                                                 </div>
-                                                <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{statusInfo.label}</span>
+                                                <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{t(statusInfo.labelKey)}</span>
                                               </div>
                                               <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
                                                 <span className="text-[10px] text-gray-500 min-w-0 squircle-xs bg-white/36 px-2 py-1.5 leading-[1.45]">
@@ -1030,7 +1027,7 @@ export default function AdminSchedulePage() {
 
                       return (
                         <div key={`list-round-${roundNumber}`}>
-                          <h3 className="text-sm font-semibold text-amber-700 mb-2.5">第 {roundNumber} 轮</h3>
+                          <h3 className="text-sm font-semibold text-amber-700 mb-2.5">{t("adminSchedule.roundNSpaced", { n: roundNumber })}</h3>
                           <div className="grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
                             {roundMatches.map((match) => {
                               const homeGroup = groupMap.get(match.homeGroupId);
@@ -1053,7 +1050,7 @@ export default function AdminSchedulePage() {
                                     <CardContent className="px-3 py-2.5">
                                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-2.5">
                                         <span className="min-w-0 self-start pt-0.5 text-[10px] font-medium leading-none text-gray-500 whitespace-nowrap truncate">
-                                          {MATCH_TYPE_LABELS[match.matchType]} · 场地{match.courtNumber}
+                                          {matchTypeLabel(t, match.matchType)} · {t("adminSchedule.courtN", { n: match.courtNumber })}
                                         </span>
                                         <div className="flex min-h-8 self-start items-start justify-center gap-3 font-medium leading-none whitespace-nowrap">
                                           <span className="text-[18px] leading-none">{homeGroup?.icon || "?"}</span>
@@ -1066,7 +1063,7 @@ export default function AdminSchedulePage() {
                                           )}
                                           <span className="text-[18px] leading-none">{awayGroup?.icon || "?"}</span>
                                         </div>
-                                        <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{statusInfo.label}</span>
+                                        <span className={`justify-self-end self-start pt-0.5 text-[10px] font-medium leading-none whitespace-nowrap ${statusInfo.color}`}>{t(statusInfo.labelKey)}</span>
                                       </div>
                                       <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
                                         <span className="text-[10px] text-gray-500 min-w-0 squircle-xs bg-white/36 px-2 py-1.5 leading-[1.45]">

@@ -2,12 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays } from "lucide-react";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 const MATCH_TYPE_STYLES: Record<string, string> = {
   MD: "bg-blue-50 border-blue-200 text-blue-700",
@@ -58,10 +54,11 @@ export function ScheduleMatrix({
   roundDurationMinutes,
   groups,
 }: ScheduleMatrixProps) {
+  const t = useT();
   return (
     <Card className="border-green-100 shadow-sm bg-white overflow-hidden">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base text-gray-700 flex items-center gap-1.5"><CalendarDays className="w-4 h-4" /> 赛程矩阵</CardTitle>
+        <CardTitle className="text-base text-gray-700 flex items-center gap-1.5"><CalendarDays className="w-4 h-4" /> {t("components.scheduleMatrix.title")}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -69,11 +66,11 @@ export function ScheduleMatrix({
             <thead>
               <tr className="border-b border-green-100 bg-green-50/50">
                 <th className="p-3 text-left font-semibold text-gray-600 sticky left-0 bg-green-50/90 backdrop-blur-sm min-w-[92px] whitespace-nowrap">
-                  轮次
+                  {t("components.scheduleMatrix.round")}
                 </th>
                 {Array.from({ length: courtsCount }, (_, i) => (
                   <th key={i} className="p-3 text-center font-semibold text-gray-600 min-w-[180px]">
-                    场地 {i + 1}
+                    {t("components.scheduleMatrix.court", { n: i + 1 })}
                   </th>
                 ))}
               </tr>
@@ -86,7 +83,7 @@ export function ScheduleMatrix({
                 return (
                   <tr key={roundNum} className="border-b border-gray-100 hover:bg-green-50/20 transition-colors">
                     <td className="p-3 sticky left-0 bg-white/90 backdrop-blur-sm">
-                      <div className="font-bold text-gray-700 whitespace-nowrap">第{roundNum}轮</div>
+                      <div className="font-bold text-gray-700 whitespace-nowrap">{t("components.scheduleMatrix.roundN", { n: roundNum })}</div>
                       <div className="text-xs text-gray-400 font-medium">
                         {getTimeSlot(startTime, roundIdx, roundDurationMinutes)}
                       </div>
@@ -111,7 +108,7 @@ export function ScheduleMatrix({
                           <div className={`squircle-card border p-2.5 ${cellStyle} transition-shadow hover:shadow-md`}>
                             <div className="flex items-center justify-center gap-1 text-xs mb-1.5">
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 squircle-pill border ${badgeStyle}`}>
-                                {MATCH_TYPE_LABELS[match.matchType] || match.matchType}
+                                {matchTypeLabel(t, match.matchType)}
                               </span>
                             </div>
                             <div className="flex items-center justify-center gap-1 text-xs font-bold">

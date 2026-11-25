@@ -1,7 +1,10 @@
+"use client";
+
 import type { ComponentPropsWithoutRef, HTMLAttributes } from "react";
 import { Mars, Venus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/provider";
 
 type Gender = "M" | "F";
 
@@ -25,12 +28,13 @@ interface PositionBadgeProps extends Omit<ComponentPropsWithoutRef<typeof Badge>
 export function PositionLabel({
   gender,
   positionNumber,
-  suffix = "号",
+  suffix,
   className,
   symbolClassName,
   textClassName,
   ...props
 }: PositionLabelProps) {
+  const t = useT();
   return (
     <span
       className={cn("inline-flex min-w-0 items-center justify-center gap-1 leading-none", className)}
@@ -41,7 +45,7 @@ export function PositionLabel({
       </span>
       <span className={cn("inline-flex items-center justify-center leading-none tabular-nums", textClassName)}>
         {positionNumber}
-        {suffix}
+        {suffix ?? t("common.position.suffix")}
       </span>
     </span>
   );
@@ -50,7 +54,7 @@ export function PositionLabel({
 export function PositionBadge({
   gender,
   positionNumber,
-  suffix = "号",
+  suffix,
   className,
   labelClassName,
   symbolClassName,

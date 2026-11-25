@@ -1,0 +1,26 @@
+const myMatches = {
+  loading: "加载中...",
+  roundCourt: "第{round}轮 · 场地{court}",
+  win: "胜",
+  loss: "负",
+  inProgress: "进行中",
+  pending: "待开始",
+  partner: "搭档",
+  opponent: "对手",
+  title: "我的比赛",
+  loginRequired: "请先登录查看个人赛程",
+  goLogin: "去登录",
+  noTournament: "暂无可查看的赛事",
+  notBound: "账号尚未绑定选手",
+  contactAdmin: "请联系管理员绑定参赛位置",
+  viewFullSchedule: "查看完整赛程",
+  matchCount: "场次",
+  tabUpcoming: "待开始 ({n})",
+  tabActive: "进行中 ({n})",
+  tabFinished: "已完成 ({n})",
+  emptyUpcoming: "没有待开始的比赛",
+  emptyActive: "没有进行中的比赛",
+  emptyFinished: "还没有已完成的比赛",
+};
+
+export default myMatches;

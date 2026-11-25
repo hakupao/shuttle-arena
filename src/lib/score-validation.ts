@@ -3,6 +3,8 @@
 // trusted: scores must be integers within a sane bound, the number of games must
 // fit the scoring mode, and the match winner is the majority of game wins.
 
+import type { TFunction } from "@/i18n/translate";
+
 export const MAX_GAME_SCORE = 60; // real badminton tops out ~30; 60 is a safe ceiling
 export const MAX_SCORE_EVENTS = 2000;
 
@@ -17,12 +19,12 @@ export type ScoreValidation =
   | { ok: false; error: string }
   | { ok: true; gameRows: ScoredGameRow[]; matchWinner: "home" | "away" | null };
 
-export function buildScoredGames(games: unknown, maxGames: number): ScoreValidation {
+export function buildScoredGames(games: unknown, maxGames: number, t: TFunction): ScoreValidation {
   if (!Array.isArray(games) || games.length === 0) {
     return { ok: false, error: "games must be a non-empty array of {homeScore, awayScore}" };
   }
   if (games.length > maxGames) {
-    return { ok: false, error: `本赛制最多 ${maxGames} 局，收到 ${games.length} 局` };
+    return { ok: false, error: t("api.scoreMaxGames", { max: maxGames, got: games.length }) };
   }
 
   const gameRows: ScoredGameRow[] = [];
@@ -43,7 +45,7 @@ export function buildScoredGames(games: unknown, maxGames: number): ScoreValidat
       home > MAX_GAME_SCORE ||
       away > MAX_GAME_SCORE
     ) {
-      return { ok: false, error: `每局比分必须是 0 到 ${MAX_GAME_SCORE} 之间的整数` };
+      return { ok: false, error: t("api.scoreGameRange", { max: MAX_GAME_SCORE }) };
     }
 
     let winner: "home" | "away" | null = null;

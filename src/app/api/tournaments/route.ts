@@ -4,6 +4,7 @@ import { tournaments, templatePositions, templateMatches, groups, players } from
 import { requireAdmin } from "@/lib/auth";
 import { getDefaultTeam, buildDefaultTemplate, type ScoringMode } from "@/lib/constants";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -24,7 +25,8 @@ interface CreateTournamentBody {
   groupCount?: number;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const allTournaments = await db.select().from(tournaments).all();
@@ -32,18 +34,19 @@ export async function GET() {
   } catch (error) {
     console.error("List tournaments error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: t("api.internalError") },
       { status: 500 }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -71,42 +74,42 @@ export async function POST(request: NextRequest) {
       scoringMode !== "best_of_3_21"
     ) {
       return NextResponse.json(
-        { error: "Invalid scoring mode" },
+        { error: t("api.invalidScoringMode") },
         { status: 400 }
       );
     }
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
-        { error: "Tournament name is required" },
+        { error: t("api.tournamentNameRequired") },
         { status: 400 }
       );
     }
 
     if (!isIntegerInRange(courtsCount, 1, 20)) {
       return NextResponse.json(
-        { error: "场地数必须在 1 到 20 之间" },
+        { error: t("api.limitCourts") },
         { status: 400 }
       );
     }
 
     if (!isIntegerInRange(roundDurationMinutes, 5, 120)) {
       return NextResponse.json(
-        { error: "每轮时长必须在 5 到 120 分钟之间" },
+        { error: t("api.limitRoundDuration") },
         { status: 400 }
       );
     }
 
     if (!isIntegerInRange(malesPerGroup, 1, 10) || !isIntegerInRange(femalesPerGroup, 1, 10)) {
       return NextResponse.json(
-        { error: "每组男女人数必须在 1 到 10 之间" },
+        { error: t("api.limitPerGroup") },
         { status: 400 }
       );
     }
 
     if (!isIntegerInRange(groupCount, 2, 20)) {
       return NextResponse.json(
-        { error: "小组数必须在 2 到 20 之间" },
+        { error: t("api.limitGroups") },
         { status: 400 }
       );
     }
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     // Create groups using default team icons
     for (let i = 0; i < groupCount; i++) {
-      const team = getDefaultTeam(i);
+      const team = getDefaultTeam(i, t);
       await db
         .insert(groups)
         .values({
@@ -210,7 +213,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Create tournament error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: t("api.internalError") },
       { status: 500 }
     );
   }

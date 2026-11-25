@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTournament } from "@/lib/tournament-context";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { FileText, Plus, RotateCcw, Save, Trash2, Info, ArrowLeft, Mars, Venus } from "lucide-react";
 import Link from "next/link";
 import { buildDefaultTemplate, buildTemplatePositions } from "@/lib/constants";
+import { useI18n, useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 interface Position {
   positionNumber: number;
@@ -26,17 +28,13 @@ interface TemplateMatch {
 }
 
 const MATCH_TYPE_OPTIONS = [
-  { value: "MD", label: "男双", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { value: "WD", label: "女双", color: "bg-pink-50 text-pink-700 border-pink-200" },
-  { value: "XD", label: "混双", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { value: "MD", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { value: "WD", color: "bg-pink-50 text-pink-700 border-pink-200" },
+  { value: "XD", color: "bg-purple-50 text-purple-700 border-purple-200" },
 ];
 
 function getMatchTypeColor(type: string) {
   return MATCH_TYPE_OPTIONS.find((o) => o.value === type)?.color || "";
-}
-
-function getMatchTypeLabel(type: string) {
-  return MATCH_TYPE_OPTIONS.find((o) => o.value === type)?.label || type;
 }
 
 function syncMirroredMatch(match: TemplateMatch): TemplateMatch {
@@ -58,6 +56,11 @@ function buildMirroredDefaults(males: number, females: number): TemplateMatch[] 
 }
 
 function TemplateContent() {
+  const { t, tNode } = useI18n();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const [positions, setPositions] = useState<Position[]>([]);
   const [matches, setMatches] = useState<TemplateMatch[]>([]);
@@ -109,7 +112,7 @@ function TemplateContent() {
 
         setPositions([]);
         setMatches([]);
-        toast.error("加载模板失败");
+        toast.error(tRef.current("adminTemplate.loadFailed"));
       } finally {
         if (!cancelled) {
           setLoadedTournamentId(currentId);
@@ -190,13 +193,13 @@ function TemplateContent() {
         body: JSON.stringify({ positions, matches: matches.map(syncMirroredMatch) }),
       });
       if (res.ok) {
-        toast.success("模板已保存");
+        toast.success(t("adminTemplate.saved"));
       } else {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "保存失败");
+        toast.error(data.error || t("adminTemplate.saveFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminTemplate.networkError"));
     } finally {
       setSaving(false);
     }
@@ -207,11 +210,11 @@ function TemplateContent() {
     const females = femalePositions.length;
     setPositions(buildTemplatePositions(males, females));
     setMatches(buildMirroredDefaults(males, females));
-    toast.info("已重置为默认模板");
+    toast.info(t("adminTemplate.resetDone"));
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId)) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminTemplate.loading")}</div>;
   }
 
   if (!currentId) {
@@ -220,18 +223,18 @@ function TemplateContent() {
         <div className="flex items-center gap-2.5">
           <Link href="/admin">
             <Button variant="ghost" size="sm" className="gap-1 text-gray-500">
-              <ArrowLeft className="w-4 h-4" /> 返回
+              <ArrowLeft className="w-4 h-4" /> {t("adminTemplate.back")}
             </Button>
           </Link>
           <FileText className="w-5 h-5 text-purple-600" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-green-900">比赛模板</h1>
-            <p className="text-xs text-gray-400">请先回到管理后台选择一个赛事</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-green-900">{t("adminTemplate.title")}</h1>
+            <p className="text-xs text-gray-400">{t("adminTemplate.selectTournamentFirst")}</p>
           </div>
         </div>
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请选择赛事后再配置模板
+            {t("adminTemplate.selectTournamentToConfigure")}
           </CardContent>
         </Card>
       </div>
@@ -248,13 +251,13 @@ function TemplateContent() {
         <div className="flex items-center gap-2.5">
           <Link href="/admin">
             <Button variant="ghost" size="sm" className="gap-1 text-gray-500">
-              <ArrowLeft className="w-4 h-4" /> 返回
+              <ArrowLeft className="w-4 h-4" /> {t("adminTemplate.back")}
             </Button>
           </Link>
           <FileText className="w-5 h-5 text-purple-600" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-green-900">比赛模板</h1>
-            <p className="text-xs text-gray-400">定义每次小组对抗的比赛场次和人员安排</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-green-900">{t("adminTemplate.title")}</h1>
+            <p className="text-xs text-gray-400">{t("adminTemplate.subtitle")}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -265,7 +268,7 @@ function TemplateContent() {
             onClick={handleReset}
           >
             <RotateCcw className="w-3.5 h-3.5 mr-1" />
-            恢复默认
+            {t("adminTemplate.resetDefault")}
           </Button>
           <Button
             size="sm"
@@ -274,7 +277,7 @@ function TemplateContent() {
             disabled={saving}
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? "保存中..." : "保存模板"}
+            {saving ? t("adminTemplate.saving") : t("adminTemplate.saveTemplate")}
           </Button>
         </div>
       </div>
@@ -282,7 +285,7 @@ function TemplateContent() {
       {/* Positions Overview */}
       <Card className="border-green-100 shadow-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-gray-800">位置编制</CardTitle>
+          <CardTitle className="text-base text-gray-800">{t("adminTemplate.positionSetup")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -296,14 +299,14 @@ function TemplateContent() {
                 }`}
                 gender={pos.gender}
                 positionNumber={pos.positionNumber}
-                suffix="号位"
+                suffix={t("common.position.slotSuffix")}
               />
             ))}
           </div>
           <div className="flex gap-4 mt-3 text-xs text-gray-500">
-            <span className="inline-flex items-center gap-1"><Mars className="w-3 h-3 shrink-0" />男选手 × {malePositions.length}</span>
-            <span className="inline-flex items-center gap-1"><Venus className="w-3 h-3 shrink-0" />女选手 × {femalePositions.length}</span>
-            <span>共 {positions.length} 人/组</span>
+            <span className="inline-flex items-center gap-1"><Mars className="w-3 h-3 shrink-0" />{t("adminTemplate.malePlayers", { n: malePositions.length })}</span>
+            <span className="inline-flex items-center gap-1"><Venus className="w-3 h-3 shrink-0" />{t("adminTemplate.femalePlayers", { n: femalePositions.length })}</span>
+            <span>{t("adminTemplate.perTeamTotal", { n: positions.length })}</span>
           </div>
         </CardContent>
       </Card>
@@ -313,25 +316,25 @@ function TemplateContent() {
         <Card className="border-gray-100 shadow-sm text-center">
           <CardContent className="py-4">
             <div className="text-2xl font-bold text-gray-800">{matches.length}</div>
-            <div className="text-xs text-gray-500">总场次</div>
+            <div className="text-xs text-gray-500">{t("adminTemplate.totalMatches")}</div>
           </CardContent>
         </Card>
         <Card className="border-blue-100 shadow-sm text-center">
           <CardContent className="py-4">
             <div className="text-2xl font-bold text-blue-600">{mdCount}</div>
-            <div className="text-xs text-blue-500">男双</div>
+            <div className="text-xs text-blue-500">{matchTypeLabel(t, "MD")}</div>
           </CardContent>
         </Card>
         <Card className="border-pink-100 shadow-sm text-center">
           <CardContent className="py-4">
             <div className="text-2xl font-bold text-pink-600">{wdCount}</div>
-            <div className="text-xs text-pink-500">女双</div>
+            <div className="text-xs text-pink-500">{matchTypeLabel(t, "WD")}</div>
           </CardContent>
         </Card>
         <Card className="border-purple-100 shadow-sm text-center">
           <CardContent className="py-4">
             <div className="text-2xl font-bold text-purple-600">{xdCount}</div>
-            <div className="text-xs text-purple-500">混双</div>
+            <div className="text-xs text-purple-500">{matchTypeLabel(t, "XD")}</div>
           </CardContent>
         </Card>
       </div>
@@ -339,7 +342,7 @@ function TemplateContent() {
       {/* Match List */}
       <Card className="border-green-100 shadow-sm">
         <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base text-gray-800">对阵安排</CardTitle>
+          <CardTitle className="text-base text-gray-800">{t("adminTemplate.encounters")}</CardTitle>
           <Button
             variant="outline"
             size="sm"
@@ -347,7 +350,7 @@ function TemplateContent() {
             onClick={addMatch}
           >
             <Plus className="w-3.5 h-3.5 mr-1" />
-            添加比赛
+            {t("adminTemplate.addMatch")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -363,7 +366,7 @@ function TemplateContent() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-400">#{idx + 1}</span>
                     <Badge className={`${getMatchTypeColor(match.matchType)} border`}>
-                      {getMatchTypeLabel(match.matchType)}
+                      {matchTypeLabel(t, match.matchType)}
                     </Badge>
                   </div>
                   <Button
@@ -388,7 +391,7 @@ function TemplateContent() {
                     <SelectContent>
                       {MATCH_TYPE_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
+                          {matchTypeLabel(t, opt.value)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -396,7 +399,7 @@ function TemplateContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="text-xs text-gray-400 font-medium">出场组合</div>
+                  <div className="text-xs text-gray-400 font-medium">{t("adminTemplate.lineup")}</div>
                   <div className="flex gap-2">
                     <Select
                       value={String(match.homePos1)}
@@ -440,7 +443,7 @@ function TemplateContent() {
                     </Select>
                   </div>
                   <div className="squircle-sm bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                    主客队自动镜像：A组 {match.homePos1} + {match.homePos2} vs B组 {match.homePos1} + {match.homePos2}
+                    {t("adminTemplate.mirrorHint", { p1: match.homePos1, p2: match.homePos2 })}
                   </div>
                 </div>
               </div>
@@ -449,7 +452,7 @@ function TemplateContent() {
 
           {matches.length === 0 && (
             <div className="text-center py-8 text-gray-400">
-              暂无比赛，点击“添加比赛”开始配置
+              {t("adminTemplate.noMatches")}
             </div>
           )}
         </CardContent>
@@ -461,8 +464,11 @@ function TemplateContent() {
           <div className="text-sm text-amber-800 flex items-start gap-2">
             <Info className="w-4 h-4 mt-0.5 shrink-0" />
             <div>
-              <strong>说明：</strong>
-              每次两个小组对抗时，将按照此模板进行 {matches.length} 场比赛。位置号对应小组内的选手编号（如 <span className="inline-flex items-center gap-0.5"><Mars className="w-3 h-3 shrink-0 inline" />1号</span> = 男1号位选手）。主队和客队使用相同位置号意味着{"\u201C"}镜像对阵{"\u201D"}——即双方派出相同位置的选手。
+              <strong>{t("adminTemplate.noteLabel")}</strong>
+              {tNode("adminTemplate.noteBody", {
+                count: matches.length,
+                example: <span className="inline-flex items-center gap-0.5"><Mars className="w-3 h-3 shrink-0 inline" />{t("adminTemplate.exampleLabel", { n: 1 })}</span>,
+              })}
             </div>
           </div>
         </CardContent>
@@ -472,8 +478,9 @@ function TemplateContent() {
 }
 
 export default function TemplatePage() {
+  const t = useT();
   return (
-    <Suspense fallback={<div className="text-center py-12 text-gray-400">加载中...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-gray-400">{t("adminTemplate.loading")}</div>}>
       <TemplateContent />
     </Suspense>
   );

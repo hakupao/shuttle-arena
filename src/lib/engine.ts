@@ -3,6 +3,7 @@
  * 负责比赛生成、赛程编排、质量评估
  */
 
+import type { TFunction } from "@/i18n/translate";
 import type { TemplateMatch } from "@/db/schema";
 import {
   DEFAULT_MAX_CONSECUTIVE_PLAYING_LIMIT,
@@ -555,7 +556,7 @@ function analyzeSchedule(
 /**
  * 运行完整模拟
  */
-export function runSimulation(params: SimulationParams): SimulationResult {
+export function runSimulation(params: SimulationParams, t: TFunction): SimulationResult {
   const warnings: string[] = [];
   const maxConsecutivePlayingLimit = getPlayingLimit(params);
   const maxConsecutiveRestingLimit = getRestingLimit(params);
@@ -585,17 +586,22 @@ export function runSimulation(params: SimulationParams): SimulationResult {
   const isOverTime = estimatedDurationMinutes > availableMinutes;
   if (isOverTime) {
     warnings.push(
-      `预计时长 ${Math.floor(estimatedDurationMinutes / 60)}小时${estimatedDurationMinutes % 60}分钟 超出可用时间 ${Math.floor(availableMinutes / 60)}小时${availableMinutes % 60}分钟`
+      t("api.simOvertime", {
+        estH: Math.floor(estimatedDurationMinutes / 60),
+        estM: estimatedDurationMinutes % 60,
+        availH: Math.floor(availableMinutes / 60),
+        availM: availableMinutes % 60,
+      })
     );
   }
 
   // 检查连续上场/轮空异常
   for (const ps of playerStats) {
     if (ps.maxConsecutivePlaying > maxConsecutivePlayingLimit) {
-      warnings.push(`选手 组${ps.groupIndex + 1}-${ps.position}号位 连续上场 ${ps.maxConsecutivePlaying} 轮`);
+      warnings.push(t("api.simConsecutivePlaying", { group: ps.groupIndex + 1, pos: ps.position, n: ps.maxConsecutivePlaying }));
     }
     if (ps.maxConsecutiveResting > maxConsecutiveRestingLimit) {
-      warnings.push(`选手 组${ps.groupIndex + 1}-${ps.position}号位 连续轮空 ${ps.maxConsecutiveResting} 轮（休息 ${ps.maxRestMinutes} 分钟）`);
+      warnings.push(t("api.simConsecutiveResting", { group: ps.groupIndex + 1, pos: ps.position, n: ps.maxConsecutiveResting, min: ps.maxRestMinutes }));
     }
   }
 

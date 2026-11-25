@@ -1,0 +1,47 @@
+import type { Messages } from "../zh";
+
+const admin: Messages["admin"] = {
+  title: "Admin",
+  defaultTournamentName: "Tournament {date}",
+  tournamentCount: "{n} tournaments",
+  newTournament: "New tournament",
+  creating: "Creating...",
+  createSuccess: "Tournament created!",
+  createFailed: "Failed to create",
+  statusDraft: "Draft",
+  statusActive: "In progress",
+  statusFinished: "Finished",
+  statusArchived: "Archived",
+  statusChanged: "Tournament status changed to \"{status}\"",
+  statusChangeFailed: "Failed to change status",
+  networkError: "Network error",
+  deleteConfirm: "Delete \"{name}\"? This cannot be undone.",
+  deleted: "Tournament deleted",
+  deleteFailed: "Failed to delete",
+  archiveConfirm: "Archived data is frozen and can no longer be edited or deleted. Archive it?",
+  dateTbd: "Date TBD",
+  courtsCount: "{n} courts",
+  start: "Start",
+  end: "Finish",
+  archive: "Archive",
+  reset: "Reset",
+  empty: "No tournaments yet. Click \"New tournament\" to get started",
+  sections: {
+    settings: "Tournament settings",
+    rules: "Rules",
+    teams: "Team settings",
+    schedule: "Schedule",
+    players: "Players",
+    lottery: "Draw & groups",
+    swap: "Substitutions",
+    scoring: "Score entry",
+    users: "Accounts",
+  },
+  redirect: {
+    loading: "Loading...",
+    redirecting: "Redirecting...",
+    toSchedule: "Redirecting to the new schedule page...",
+  },
+};
+
+export default admin;

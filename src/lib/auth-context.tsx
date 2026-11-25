@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { useT } from "@/i18n/provider";
 
 interface AuthUser {
   id: number;
@@ -35,6 +36,7 @@ interface AuthActionResponse {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const t = useT();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user ?? null);
       return { ok: true };
     }
-    return { ok: false, error: data.error || "登录失败" };
+    return { ok: false, error: data.error || t("common.auth.loginFailed") };
   };
 
   const logout = async () => {

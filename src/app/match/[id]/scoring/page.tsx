@@ -17,12 +17,8 @@ import {
   type ScoreTimelineEvent,
 } from "@/components/match/score-timeline-card";
 import { sanitizeIntegerInput } from "@/lib/utils";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
+import { useI18n } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 interface MatchData {
   id: number;
@@ -96,6 +92,7 @@ function clearDraft(matchId: string) {
 }
 
 export default function ScoringPage() {
+  const { t, intlLocale } = useI18n();
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -162,8 +159,8 @@ export default function ScoringPage() {
     setLineJudgeId(draft.lineJudgeId);
     setPendingDraft(null);
     draftReady.current = true;
-    toast.success("已恢复上次记分进度");
-  }, []);
+    toast.success(t("scoring.draftRestored"));
+  }, [t]);
 
   const discardDraft = useCallback(() => {
     clearDraft(matchId);
@@ -343,7 +340,7 @@ export default function ScoringPage() {
         );
 
         if (validGames.length === 0) {
-          toast.error("请至少填写一局比分");
+          toast.error(t("scoring.needOneGame"));
           setSubmitting(false);
           return;
         }
@@ -352,12 +349,12 @@ export default function ScoringPage() {
           const h = parseInt(g.homeScore, 10);
           const a = parseInt(g.awayScore, 10);
           if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
-            toast.error("比分必须为非负整数");
+            toast.error(t("scoring.scoreNonNegative"));
             setSubmitting(false);
             return;
           }
           if (h === a) {
-            toast.error("比分不能相同（需要决出胜负）");
+            toast.error(t("scoring.scoreNoTie"));
             setSubmitting(false);
             return;
           }
@@ -377,7 +374,7 @@ export default function ScoringPage() {
           }));
 
         if (gamesToSubmit.length === 0) {
-          toast.error("比赛尚未结束");
+          toast.error(t("scoring.matchNotFinished"));
           setSubmitting(false);
           return;
         }
@@ -398,19 +395,19 @@ export default function ScoringPage() {
 
       if (res.ok) {
         clearDraft(matchId);
-        toast.success("比分已保存！");
+        toast.success(t("scoring.saved"));
         router.push(`/match/${match.id}`);
       } else {
         const err = await res.json() as ScoreApiError;
-        toast.error(err.error || "保存失败");
+        toast.error(err.error || t("scoring.saveFailed"));
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
-  if (!match) return <div className="text-center py-12 text-muted-foreground">比赛不存在</div>;
+  if (loading) return <div className="text-center py-12 text-muted-foreground">{t("scoring.loading")}</div>;
+  if (!match) return <div className="text-center py-12 text-muted-foreground">{t("scoring.notFound")}</div>;
 
   const currentGameData = games[currentGame];
   const isEditingFinished = match.status === "finished";
@@ -423,13 +420,13 @@ export default function ScoringPage() {
       {/* Match Info */}
       <div className="text-center">
         <Badge variant="outline" className="mb-2">
-          第{match.roundNumber}轮 · 场地{match.courtNumber} · {MATCH_TYPE_LABELS[match.matchType]}
+          {t("scoring.roundCourtType", { round: match.roundNumber, court: match.courtNumber, type: matchTypeLabel(t, match.matchType) })}
         </Badge>
         {isAdmin && (
-          <Badge className="ml-2 bg-amber-100 text-amber-700 text-xs">管理员模式</Badge>
+          <Badge className="ml-2 bg-amber-100 text-amber-700 text-xs">{t("scoring.adminMode")}</Badge>
         )}
         {isEditingFinished && (
-          <Badge className="ml-2 bg-rose-100 text-rose-700 text-xs">编辑已完成比赛</Badge>
+          <Badge className="ml-2 bg-rose-100 text-rose-700 text-xs">{t("scoring.editingFinished")}</Badge>
         )}
         <div className="flex items-center justify-center gap-4 text-lg font-medium mt-2">
           <span>{match.homeGroup.icon} {match.homeGroup.name}</span>
@@ -447,16 +444,16 @@ export default function ScoringPage() {
                 <RotateCcw className="w-4 h-4 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-amber-800">未完成的记分</div>
+                <div className="text-sm font-medium text-amber-800">{t("scoring.unfinishedDraft")}</div>
                 <div className="text-xs text-amber-600/80 truncate">
                   {pendingDraft.games.filter(g => g.homeScore > 0 || g.awayScore > 0).map((g, i) => (
                     <span key={i}>
                       {i > 0 && " / "}
-                      第{i + 1}局 {g.homeScore}:{g.awayScore}
+                      {t("scoring.gameScore", { n: i + 1, home: g.homeScore, away: g.awayScore })}
                     </span>
                   ))}
                   {" · "}
-                  {new Date(pendingDraft.savedAt).toLocaleString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(pendingDraft.savedAt).toLocaleString(intlLocale, { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
               <div className="flex gap-1.5 shrink-0">
@@ -465,7 +462,7 @@ export default function ScoringPage() {
                   className="bg-amber-600 hover:bg-amber-700 text-white h-8 px-3 text-xs"
                   onClick={() => restoreDraft(pendingDraft)}
                 >
-                  恢复
+                  {t("scoring.restore")}
                 </Button>
                 <Button
                   size="sm"
@@ -484,7 +481,7 @@ export default function ScoringPage() {
       {/* Referee Buttons */}
       <Card className="border-gray-100 shadow-sm">
         <CardContent className="pt-4 space-y-3">
-          <div className="text-sm font-medium">裁判 & 边裁（可选）</div>
+          <div className="text-sm font-medium">{t("scoring.refereeSection")}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
               variant={refereeId ? "default" : "outline"}
@@ -497,11 +494,11 @@ export default function ScoringPage() {
                 } else if (user?.playerId) {
                   setRefereeId(String(user.playerId));
                 } else {
-                  toast.error("登录并绑定选手后才可登记裁判身份");
+                  toast.error(t("scoring.refereeNeedsBinding"));
                 }
               }}
             >
-              {refereeId ? `主裁: ${user?.username || "我"}` : "我是主裁"}
+              {refereeId ? t("scoring.headReferee", { name: user?.username || t("scoring.me") }) : t("scoring.iAmReferee")}
             </Button>
             <Button
               variant={lineJudgeId ? "default" : "outline"}
@@ -514,11 +511,11 @@ export default function ScoringPage() {
                 } else if (user?.playerId) {
                   setLineJudgeId(String(user.playerId));
                 } else {
-                  toast.error("登录并绑定选手后才可登记裁判身份");
+                  toast.error(t("scoring.refereeNeedsBinding"));
                 }
               }}
             >
-              {lineJudgeId ? `边裁: ${user?.username || "我"}` : "我是边裁"}
+              {lineJudgeId ? t("scoring.lineJudge", { name: user?.username || t("scoring.me") }) : t("scoring.iAmLineJudge")}
             </Button>
           </div>
         </CardContent>
@@ -529,12 +526,12 @@ export default function ScoringPage() {
         <Card className="border-amber-100 shadow-lg">
           <CardContent className="pt-5 space-y-4">
             <div className="text-sm font-medium text-gray-700">
-              {isEditingFinished ? "编辑比分" : "直接输入比分"}
+              {isEditingFinished ? t("scoring.editScore") : t("scoring.directInput")}
             </div>
             {adminGames.map((game, i) => (
               <div key={i} className="flex items-center gap-3">
                 {adminGames.length > 1 && (
-                  <span className="text-xs text-muted-foreground w-14 shrink-0">第{i + 1}局</span>
+                  <span className="text-xs text-muted-foreground w-14 shrink-0">{t("scoring.gameLabel", { n: i + 1 })}</span>
                 )}
                 <div className="flex-1">
                   <div className="text-xs text-center text-gray-400 mb-1">{match.homeGroup.icon} {match.homeGroup.name}</div>
@@ -542,7 +539,7 @@ export default function ScoringPage() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="主队得分"
+                    placeholder={t("scoring.homeScorePlaceholder")}
                     value={game.homeScore}
                     onChange={(e) => updateAdminGame(i, "homeScore", sanitizeIntegerInput(e.target.value))}
                     className="text-center font-bold text-lg"
@@ -555,7 +552,7 @@ export default function ScoringPage() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="客队得分"
+                    placeholder={t("scoring.awayScorePlaceholder")}
                     value={game.awayScore}
                     onChange={(e) => updateAdminGame(i, "awayScore", sanitizeIntegerInput(e.target.value))}
                     className="text-center font-bold text-lg"
@@ -577,7 +574,7 @@ export default function ScoringPage() {
                   className="cursor-pointer"
                   onClick={() => !g.winner && setCurrentGame(i)}
                 >
-                  第{i + 1}局
+                  {t("scoring.gameLabel", { n: i + 1 })}
                   {g.winner && ` ${g.homeScore}:${g.awayScore}`}
                 </Badge>
               ))}
@@ -610,7 +607,7 @@ export default function ScoringPage() {
                       onClick={() => undoPoint("home")}
                       disabled={currentGameData.homeScore === 0 || lastScoringSide !== "home"}
                     >
-                      撤销
+                      {t("scoring.undo")}
                     </Button>
                   </div>
                 </div>
@@ -637,7 +634,7 @@ export default function ScoringPage() {
                       onClick={() => undoPoint("away")}
                       disabled={currentGameData.awayScore === 0 || lastScoringSide !== "away"}
                     >
-                      撤销
+                      {t("scoring.undo")}
                     </Button>
                   </div>
                 </div>
@@ -650,7 +647,7 @@ export default function ScoringPage() {
             awayGroup={match.awayGroup}
             events={scoreEvents}
             live
-            emptyMessage="开始记分后，这里会实时显示得分路径。"
+            emptyMessage={t("scoring.timelineEmpty")}
           />
 
           {/* Match Result */}
@@ -659,7 +656,7 @@ export default function ScoringPage() {
               <CardContent className="py-4 text-center">
                 <div className="text-lg font-bold text-green-700 mb-2 flex items-center justify-center gap-2">
                   <CheckCircle className="w-5 h-5" />
-                  比赛结束！
+                  {t("scoring.matchOver")}
                 </div>
                 <div className="text-sm text-gray-600">
                   {games.filter((g) => g.winner !== null).map((g, i) => (
@@ -678,7 +675,7 @@ export default function ScoringPage() {
       {!isAdmin && isEditingFinished && (
         <Card className="border-gray-100 shadow-sm">
           <CardContent className="py-4 text-center text-sm text-gray-500">
-            这场比赛的比分已经提交。匿名用户和普通用户都不能修改已提交结果，只有管理员可以编辑。
+            {t("scoring.alreadySubmitted")}
           </CardContent>
         </Card>
       )}
@@ -692,7 +689,7 @@ export default function ScoringPage() {
           disabled={submitting}
         >
           <Send className="w-4 h-4 mr-1" />
-          {submitting ? "提交中..." : isEditingFinished ? "更新比分" : "提交比分"}
+          {submitting ? t("scoring.submitting") : isEditingFinished ? t("scoring.updateScore") : t("scoring.submitScore")}
         </Button>
       )}
     </div>

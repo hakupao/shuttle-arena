@@ -2,6 +2,7 @@
 
 import { PenLine } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useI18n } from "@/i18n/provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export interface ScoreTimelineEvent {
@@ -63,6 +64,7 @@ export function ScoreTimelineCard({
   live = false,
   emptyMessage,
 }: ScoreTimelineCardProps) {
+  const { t, intlLocale } = useI18n();
   const normalizedEvents = normalizeScoreTimelineEvents(events);
 
   if (normalizedEvents.length === 0 && !emptyMessage) {
@@ -77,11 +79,11 @@ export function ScoreTimelineCard({
         <CardTitle className="flex items-center justify-between gap-3 text-base text-gray-800">
           <span className="flex items-center gap-2">
             <PenLine className="h-4 w-4 text-blue-500" />
-            得分路径
+            {t("components.scoreTimeline.title")}
           </span>
           {live && (
             <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-              实时更新
+              {t("components.scoreTimeline.live")}
             </Badge>
           )}
         </CardTitle>
@@ -107,7 +109,7 @@ export function ScoreTimelineCard({
             return (
               <div key={gameNumber} className="mb-4 last:mb-0">
                 {gameNumbers.length > 1 && (
-                  <div className="mb-2 text-xs font-semibold text-gray-500">第 {gameNumber} 局</div>
+                  <div className="mb-2 text-xs font-semibold text-gray-500">{t("components.scoreTimeline.gameN", { n: gameNumber })}</div>
                 )}
                 <table className="mx-auto w-full max-w-xs border-collapse">
                   <thead>
@@ -125,7 +127,7 @@ export function ScoreTimelineCard({
                       <tr
                         key={`${evt.gameNumber}-${evt.eventOrder}-${evt.homeScore}-${evt.awayScore}`}
                         className={serviceBreaks.has(index) ? "border-t border-gray-200" : ""}
-                        title={new Date(evt.timestamp).toLocaleTimeString("zh-CN")}
+                        title={new Date(evt.timestamp).toLocaleTimeString(intlLocale)}
                       >
                         <td
                           className={`py-0.5 text-center font-mono text-sm ${

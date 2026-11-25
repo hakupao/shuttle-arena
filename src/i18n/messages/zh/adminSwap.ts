@@ -1,0 +1,27 @@
+const adminSwap = {
+  title: "换人管理",
+  loading: "加载中...",
+  loadFailed: "加载数据失败",
+  swapSuccess: "换人成功",
+  swapFailed: "换人失败",
+  networkError: "网络错误",
+  noSchedule: "暂无赛程数据，请先生成赛程",
+  selectTournament: "请先选择赛事",
+  noDualPositions: "暂无双人位置，请先在「运动员」页面为位置添加轮换选手",
+  positionFallback: "{n}号",
+  appearances: "({n}场)",
+  swapTo: "换为 {name} ({n}场)",
+  alternateFallback: "轮换",
+  primaryFallback: "主",
+  summary: "{swappable} 个可换位置 · {matches} 场相关比赛",
+  refresh: "刷新",
+  statsTitle: "双人位置出场统计",
+  positionStat: "{icon}{n}号:",
+  round: "第 {n} 轮",
+  matchCount: "{n} 场",
+  court: "{n}号场",
+  finished: "已结束",
+  inProgress: "进行中",
+};
+
+export default adminSwap;

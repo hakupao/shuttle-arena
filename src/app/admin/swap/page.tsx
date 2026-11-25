@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { ArrowLeftRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { useTournament } from "@/lib/tournament-context";
-import { MATCH_TYPE_LABELS } from "@/lib/constants";
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
 
 interface PlayerInfo {
   id: number;
@@ -49,6 +50,11 @@ const PLAYER_SLOTS: { key: PlayerSlot; idKey: keyof MatchInfo; side: "home" | "a
 ];
 
 export default function AdminSwapPage() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const [matches, setMatches] = useState<MatchInfo[]>([]);
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
@@ -83,7 +89,7 @@ export default function AdminSwapPage() {
       setGroups(allGroups.map(g => ({ id: g.id, name: g.name, icon: g.icon })));
       setPlayers(allGroups.flatMap(g => g.players));
     } catch {
-      toast.error("加载数据失败");
+      toast.error(tRef.current("adminSwap.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -121,13 +127,13 @@ export default function AdminSwapPage() {
       if (res.ok) {
         const data = await res.json() as { match: MatchInfo };
         setMatches(prev => prev.map(m => m.id === matchId ? { ...m, ...data.match } : m));
-        toast.success("换人成功");
+        toast.success(t("adminSwap.swapSuccess"));
       } else {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "换人失败");
+        toast.error(data.error || t("adminSwap.swapFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminSwap.networkError"));
     } finally {
       setSwapping(null);
     }
@@ -187,16 +193,16 @@ export default function AdminSwapPage() {
   }, 0);
 
   if (tournamentLoading || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminSwap.loading")}</div>;
   }
 
   if (!currentId || matches.length === 0) {
     return (
       <div className="admin-page-narrow">
-        <AdminPageHeader title="换人管理" icon={ArrowLeftRight} iconClassName="w-4.5 h-4.5 text-orange-600" />
+        <AdminPageHeader title={t("adminSwap.title")} icon={ArrowLeftRight} iconClassName="w-4.5 h-4.5 text-orange-600" />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            {currentId ? "暂无赛程数据，请先生成赛程" : "请先选择赛事"}
+            {currentId ? t("adminSwap.noSchedule") : t("adminSwap.selectTournament")}
           </CardContent>
         </Card>
       </div>
@@ -206,10 +212,10 @@ export default function AdminSwapPage() {
   if (positionsWithAlternates.size === 0) {
     return (
       <div className="admin-page-narrow">
-        <AdminPageHeader title="换人管理" icon={ArrowLeftRight} iconClassName="w-4.5 h-4.5 text-orange-600" />
+        <AdminPageHeader title={t("adminSwap.title")} icon={ArrowLeftRight} iconClassName="w-4.5 h-4.5 text-orange-600" />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            暂无双人位置，请先在「运动员」页面为位置添加轮换选手
+            {t("adminSwap.noDualPositions")}
           </CardContent>
         </Card>
       </div>
@@ -233,12 +239,12 @@ export default function AdminSwapPage() {
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-gray-400 shrink-0">{group?.icon}</span>
         <span className={`text-xs font-medium truncate ${isAlternateSlot ? "text-amber-700" : "text-gray-800"}`}>
-          {player.name || `${player.positionNumber}号`}
+          {player.name || t("adminSwap.positionFallback", { n: player.positionNumber })}
         </span>
-        <span className="text-[10px] text-gray-400 tabular-nums shrink-0">({appearances}场)</span>
+        <span className="text-[10px] text-gray-400 tabular-nums shrink-0">{t("adminSwap.appearances", { n: appearances })}</span>
         {hasAlternate && isPending && (
           <button
-            title={`换为 ${alternate!.name || "轮换"} (${altAppearances}场)`}
+            title={t("adminSwap.swapTo", { name: alternate!.name || t("adminSwap.alternateFallback"), n: altAppearances })}
             onClick={() => handleSwap(match.id, slot.key, alternate!.id)}
             disabled={swapping === match.id}
             className="ml-auto shrink-0 p-0.5 rounded text-orange-400 hover:text-orange-600 hover:bg-orange-50 transition-colors disabled:opacity-50"
@@ -253,12 +259,12 @@ export default function AdminSwapPage() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <AdminPageHeader
-        title="换人管理"
+        title={t("adminSwap.title")}
         icon={ArrowLeftRight}
         iconClassName="w-4.5 h-4.5 text-orange-600"
         extraBadge={
           <span className="text-xs text-gray-400">
-            {swappableCount} 个可换位置 · {relevantMatches.length} 场相关比赛
+            {t("adminSwap.summary", { swappable: swappableCount, matches: relevantMatches.length })}
           </span>
         }
         actions={(
@@ -269,7 +275,7 @@ export default function AdminSwapPage() {
             className="border-gray-200 text-gray-500 gap-1"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            刷新
+            {t("adminSwap.refresh")}
           </Button>
         )}
       />
@@ -277,7 +283,7 @@ export default function AdminSwapPage() {
       {/* Player appearance summary */}
       <Card className="border-orange-100">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-orange-800">双人位置出场统计</CardTitle>
+          <CardTitle className="text-sm text-orange-800">{t("adminSwap.statsTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -289,12 +295,12 @@ export default function AdminSwapPage() {
               if (!primary || !alt) return null;
               return (
                 <div key={posKey} className="text-xs text-gray-600 flex items-center gap-1">
-                  <span>{group?.icon}{pn}号:</span>
-                  <span className="font-medium">{primary.name || "主"}</span>
-                  <span className="text-gray-400">({playerAppearances.get(primary.id) || 0}场)</span>
+                  <span>{t("adminSwap.positionStat", { icon: group?.icon ?? "", n: pn })}</span>
+                  <span className="font-medium">{primary.name || t("adminSwap.primaryFallback")}</span>
+                  <span className="text-gray-400">{t("adminSwap.appearances", { n: playerAppearances.get(primary.id) || 0 })}</span>
                   <span className="text-gray-300">/</span>
-                  <span className="font-medium text-amber-700">{alt.name || "轮换"}</span>
-                  <span className="text-gray-400">({playerAppearances.get(alt.id) || 0}场)</span>
+                  <span className="font-medium text-amber-700">{alt.name || t("adminSwap.alternateFallback")}</span>
+                  <span className="text-gray-400">{t("adminSwap.appearances", { n: playerAppearances.get(alt.id) || 0 })}</span>
                 </div>
               );
             })}
@@ -308,8 +314,8 @@ export default function AdminSwapPage() {
           <Card key={roundNum} className="border-gray-200">
             <CardHeader className="py-2 px-4 bg-gray-50/50 border-b border-gray-100">
               <CardTitle className="text-xs text-gray-500">
-                第 {roundNum} 轮
-                <span className="ml-2 text-gray-400 font-normal">{roundMatches.length} 场</span>
+                {t("adminSwap.round", { n: roundNum })}
+                <span className="ml-2 text-gray-400 font-normal">{t("adminSwap.matchCount", { n: roundMatches.length })}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2 space-y-1.5">
@@ -323,16 +329,16 @@ export default function AdminSwapPage() {
                     className={`rounded-lg border px-3 py-2 space-y-1.5 ${isPending ? "border-gray-200" : "border-gray-100 bg-gray-50 opacity-70"}`}
                   >
                     <div className="flex items-center gap-1.5 text-xs">
-                      <Badge variant="outline" className="text-[10px] border-gray-200 px-1.5 py-0">{match.courtNumber}号场</Badge>
+                      <Badge variant="outline" className="text-[10px] border-gray-200 px-1.5 py-0">{t("adminSwap.court", { n: match.courtNumber })}</Badge>
                       <Badge variant="outline" className="text-[10px] border-gray-200 px-1.5 py-0">
-                        {MATCH_TYPE_LABELS[match.matchType as keyof typeof MATCH_TYPE_LABELS] || match.matchType}
+                        {matchTypeLabel(t, match.matchType)}
                       </Badge>
                       <span className="text-gray-400 truncate">
                         {homeGroup?.icon} {homeGroup?.name} vs {awayGroup?.icon} {awayGroup?.name}
                       </span>
                       {!isPending && (
                         <Badge className="ml-auto text-[10px] bg-gray-100 text-gray-500 border-gray-200 px-1.5 py-0">
-                          {match.status === "finished" ? "已结束" : "进行中"}
+                          {match.status === "finished" ? t("adminSwap.finished") : t("adminSwap.inProgress")}
                         </Badge>
                       )}
                     </div>

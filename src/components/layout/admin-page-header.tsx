@@ -7,13 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTournament } from "@/lib/tournament-context";
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "筹备中",
-  active: "进行中",
-  finished: "已结束",
-  archived: "已归档",
-};
+import { useT } from "@/i18n/provider";
+import type { MessageKey } from "@/i18n/translate";
 
 const STATUS_CLASSES: Record<string, string> = {
   draft: "bg-amber-50 text-amber-600 border-amber-200",
@@ -40,6 +35,7 @@ export function AdminPageHeader({
   actions,
   extraBadge,
 }: AdminPageHeaderProps) {
+  const t = useT();
   const { currentName, currentStatus } = useTournament();
 
   return (
@@ -65,7 +61,9 @@ export function AdminPageHeader({
         )}
         {currentStatus && (
           <Badge className={`text-xs border shrink-0 ${STATUS_CLASSES[currentStatus] || STATUS_CLASSES.draft}`}>
-            {STATUS_LABELS[currentStatus] || currentStatus}
+            {currentStatus in STATUS_CLASSES
+              ? t(`components.adminHeader.status.${currentStatus}` as MessageKey)
+              : currentStatus}
           </Badge>
         )}
         {extraBadge}

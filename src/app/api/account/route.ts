@@ -9,6 +9,7 @@ import {
   validatePassword,
   validateUsername,
 } from "@/lib/account-validation";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = "edge";
 
@@ -19,6 +20,7 @@ interface UpdateAccountRequestBody {
 }
 
 export async function PUT(request: NextRequest) {
+  const t = getRequestT(request);
   try {
     const currentUser = await requireUser();
     const body = await request.json() as UpdateAccountRequestBody;
@@ -30,28 +32,28 @@ export async function PUT(request: NextRequest) {
     const passwordChanged = Boolean(newPassword);
 
     if (!usernameChanged && !passwordChanged) {
-      return NextResponse.json({ error: "没有需要保存的修改" }, { status: 400 });
+      return NextResponse.json({ error: t("api.accountNoChanges") }, { status: 400 });
     }
 
-    const currentPasswordError = validatePassword(currentPassword, "当前密码");
+    const currentPasswordError = validatePassword(currentPassword, t, t("api.labelCurrentPassword"));
     if (currentPasswordError) {
       return NextResponse.json({ error: currentPasswordError }, { status: 400 });
     }
 
     const passwordValid = await verifyPassword(currentPassword, currentUser.passwordHash);
     if (!passwordValid) {
-      return NextResponse.json({ error: "当前密码不正确" }, { status: 400 });
+      return NextResponse.json({ error: t("api.accountWrongPassword") }, { status: 400 });
     }
 
     if (usernameChanged) {
-      const usernameError = validateUsername(username);
+      const usernameError = validateUsername(username, t);
       if (usernameError) {
         return NextResponse.json({ error: usernameError }, { status: 400 });
       }
     }
 
     if (passwordChanged) {
-      const newPasswordError = validatePassword(newPassword, "新密码");
+      const newPasswordError = validatePassword(newPassword, t, t("api.labelNewPassword"));
       if (newPasswordError) {
         return NextResponse.json({ error: newPasswordError }, { status: 400 });
       }
@@ -67,7 +69,7 @@ export async function PUT(request: NextRequest) {
         .get();
 
       if (existingUser && existingUser.id !== currentUser.id) {
-        return NextResponse.json({ error: "用户名已存在" }, { status: 409 });
+        return NextResponse.json({ error: t("api.usernameExists") }, { status: 409 });
       }
     }
 
@@ -101,10 +103,10 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: t("api.unauthorized") }, { status: 401 });
     }
 
     console.error("Update account error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

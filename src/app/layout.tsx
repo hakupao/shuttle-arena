@@ -6,6 +6,8 @@ import { MainNav } from "@/components/layout/main-nav";
 import { Footer } from "@/components/layout/footer";
 import { AuthProvider } from "@/lib/auth-context";
 import { TournamentProvider } from "@/lib/tournament-context";
+import { I18nProvider } from "@/i18n/provider";
+import { I18N_BOOT_SCRIPT } from "@/i18n/boot-script";
 
 const nunito = Nunito({
   variable: "--font-sans",
@@ -20,8 +22,8 @@ const nunitoSans = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "ShuttleArena | 羽球竞技场",
-  description: "羽毛球团体循环赛管理系统",
+  // No static title: I18nProvider renders a localized <title> (English during prerender).
+  description: "Badminton team round-robin tournament manager",
   icons: {
     icon: [{ url: "/icon", type: "image/png" }],
     shortcut: "/icon",
@@ -35,21 +37,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: I18N_BOOT_SCRIPT }} />
+      </head>
       <body
         className={`${nunito.variable} ${nunitoSans.variable} antialiased min-h-screen flex flex-col bg-background text-foreground court-bg`}
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <TournamentProvider>
-            <MainNav />
-            <main className="container mx-auto px-4 py-6 max-w-7xl flex-1">
-              {children}
-            </main>
-            <Footer />
-            <Toaster richColors position="top-center" />
-          </TournamentProvider>
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <TournamentProvider>
+              <MainNav />
+              <main className="container mx-auto px-4 py-6 max-w-7xl flex-1">
+                {children}
+              </main>
+              <Footer />
+              <Toaster richColors position="top-center" />
+            </TournamentProvider>
+          </AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

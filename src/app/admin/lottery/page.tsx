@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { PositionBadge } from "@/components/player/position-label";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { toast } from "sonner";
 import { useTournament } from "@/lib/tournament-context";
+import { useI18n } from "@/i18n/provider";
 import { Shuffle, Users, UserPlus, Trash2, Dices, Mars, Venus } from "lucide-react";
 
 interface RegisteredUser {
@@ -52,6 +53,11 @@ interface UsersResponse {
 }
 
 export default function LotteryPage() {
+  const { t, tNode } = useI18n();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const tournamentId = currentId ? String(currentId) : "";
 
@@ -100,7 +106,7 @@ export default function LotteryPage() {
         (usersData.users || []).filter((u: RegisteredUser) => u.role === "athlete")
       );
     } catch {
-      toast.error("加载失败");
+      toast.error(tRef.current("adminLottery.loadFailed"));
     } finally {
       if (selectedTournamentId !== undefined) {
         setLoadedTournamentId(selectedTournamentId ?? null);
@@ -118,7 +124,7 @@ export default function LotteryPage() {
 
   const addParticipant = async () => {
     if (!selectedUserId || !selectedPosition || !selectedGender) {
-      toast.error("请选择运动员、位置和性别");
+      toast.error(t("adminLottery.selectAllRequired"));
       return;
     }
 
@@ -136,17 +142,17 @@ export default function LotteryPage() {
       });
 
       if (res.ok) {
-        toast.success("已添加参赛者");
+        toast.success(t("adminLottery.participantAdded"));
         setSelectedUserId("");
         setSelectedPosition("");
         setSelectedGender("");
         fetchData();
       } else {
         const err = await res.json() as ActionResponse;
-        toast.error(err.error || "添加失败");
+        toast.error(err.error || t("adminLottery.addFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminLottery.networkError"));
     }
   };
 
@@ -157,16 +163,16 @@ export default function LotteryPage() {
         { method: "DELETE" }
       );
       if (res.ok) {
-        toast.success("已移除");
+        toast.success(t("adminLottery.removed"));
         fetchData();
       }
     } catch {
-      toast.error("移除失败");
+      toast.error(t("adminLottery.removeFailed"));
     }
   };
 
   const runLottery = async () => {
-    if (!confirm("确定要进行摇号？这将覆盖当前的人员分配。")) return;
+    if (!confirm(t("adminLottery.confirmLottery"))) return;
 
     setLotteryRunning(true);
     setLotteryResults(null);
@@ -176,34 +182,34 @@ export default function LotteryPage() {
       });
       const data = await res.json() as ActionResponse;
       if (res.ok) {
-        toast.success(data.message || "摇号完成！");
+        toast.success(data.message || t("adminLottery.lotteryDone"));
         setLotteryResults(data.assignments || []);
         fetchData();
       } else {
-        toast.error(data.error || "摇号失败");
+        toast.error(data.error || t("adminLottery.lotteryFailed"));
       }
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminLottery.networkError"));
     } finally {
       setLotteryRunning(false);
     }
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminLottery.loading")}</div>;
   }
 
   if (!currentId) {
     return (
       <div className="admin-page-medium">
         <AdminPageHeader
-          title="摇号分组"
+          title={t("adminLottery.title")}
           icon={Shuffle}
           iconClassName="w-4.5 h-4.5 text-indigo-600"
         />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请先回到管理后台选择一个赛事
+            {t("adminLottery.selectTournamentFirst")}
           </CardContent>
         </Card>
       </div>
@@ -221,7 +227,7 @@ export default function LotteryPage() {
   return (
     <div className="admin-page-medium">
       <AdminPageHeader
-        title="摇号分组"
+        title={t("adminLottery.title")}
         icon={Shuffle}
         iconClassName="w-4.5 h-4.5 text-indigo-600"
         actions={(
@@ -231,17 +237,17 @@ export default function LotteryPage() {
             disabled={lotteryRunning || participants.length === 0}
           >
             <Dices className="w-4 h-4" />
-            {lotteryRunning ? "摇号中..." : "开始摇号"}
+            {lotteryRunning ? t("adminLottery.lotteryRunning") : t("adminLottery.startLottery")}
           </Button>
         )}
       />
 
       {/* Stats */}
       <div className="flex gap-4 flex-wrap text-sm text-gray-500">
-        <span>已报名: <strong className="text-gray-800">{participants.length}</strong> 人</span>
-        <span>队伍数: <strong className="text-gray-800">{groupCount}</strong></span>
-        <span>每队: <strong className="text-blue-600">{malesPerGroup}男</strong> + <strong className="text-pink-600">{femalesPerGroup}女</strong></span>
-        <span>每位置上限: <strong className="text-gray-800">{groupCount}</strong> 人</span>
+        <span>{tNode("adminLottery.statRegistered", { n: <strong className="text-gray-800">{participants.length}</strong> })}</span>
+        <span>{tNode("adminLottery.statTeams", { n: <strong className="text-gray-800">{groupCount}</strong> })}</span>
+        <span>{tNode("adminLottery.statPerTeam", { m: <strong className="text-blue-600">{t("adminLottery.maleCount", { n: malesPerGroup })}</strong>, f: <strong className="text-pink-600">{t("adminLottery.femaleCount", { n: femalesPerGroup })}</strong> })}</span>
+        <span>{tNode("adminLottery.statPerPosition", { n: <strong className="text-gray-800">{groupCount}</strong> })}</span>
       </div>
 
       {/* Add participant form */}
@@ -249,19 +255,19 @@ export default function LotteryPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <UserPlus className="w-4 h-4 text-indigo-500" />
-            添加参赛者
+            {t("adminLottery.addParticipant")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-[1fr_1fr] gap-3 items-end sm:grid-cols-[1fr_auto_auto_auto]">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">运动员</label>
+              <label className="text-xs text-gray-500 mb-1 block">{t("adminLottery.athlete")}</label>
               <Select value={selectedUserId} onValueChange={(v: string | null) => setSelectedUserId(v || "")}>
                 <SelectTrigger className="h-9">
                   <span className="truncate">
                     {selectedUserId
-                      ? registeredUsers.find((u) => String(u.id) === selectedUserId)?.username || "选择"
-                      : "选择运动员"}
+                      ? registeredUsers.find((u) => String(u.id) === selectedUserId)?.username || t("adminLottery.choose")
+                      : t("adminLottery.chooseAthlete")}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
@@ -276,25 +282,25 @@ export default function LotteryPage() {
               </Select>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">性别</label>
+              <label className="text-xs text-gray-500 mb-1 block">{t("adminLottery.gender")}</label>
               <Select value={selectedGender} onValueChange={(v: string | null) => {
                 setSelectedGender(v || "");
                 setSelectedPosition(""); // reset position when gender changes
               }}>
                 <SelectTrigger className="h-9">
-                  <span className="inline-flex items-center gap-1">{selectedGender === "M" ? <><Mars className="w-3.5 h-3.5 shrink-0" />男</> : selectedGender === "F" ? <><Venus className="w-3.5 h-3.5 shrink-0" />女</> : "选择"}</span>
+                  <span className="inline-flex items-center gap-1">{selectedGender === "M" ? <><Mars className="w-3.5 h-3.5 shrink-0" />{t("adminLottery.male")}</> : selectedGender === "F" ? <><Venus className="w-3.5 h-3.5 shrink-0" />{t("adminLottery.female")}</> : t("adminLottery.choose")}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="M"><span className="inline-flex items-center gap-1"><Mars className="w-3.5 h-3.5 shrink-0" />男</span></SelectItem>
-                  <SelectItem value="F"><span className="inline-flex items-center gap-1"><Venus className="w-3.5 h-3.5 shrink-0" />女</span></SelectItem>
+                  <SelectItem value="M"><span className="inline-flex items-center gap-1"><Mars className="w-3.5 h-3.5 shrink-0" />{t("adminLottery.male")}</span></SelectItem>
+                  <SelectItem value="F"><span className="inline-flex items-center gap-1"><Venus className="w-3.5 h-3.5 shrink-0" />{t("adminLottery.female")}</span></SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">位置号</label>
+              <label className="text-xs text-gray-500 mb-1 block">{t("adminLottery.positionNumber")}</label>
               <Select value={selectedPosition} onValueChange={(v: string | null) => setSelectedPosition(v || "")}>
                 <SelectTrigger className="h-9">
-                  <span>{selectedPosition ? `${selectedPosition}号位` : "选择"}</span>
+                  <span>{selectedPosition ? t("adminLottery.positionSlot", { n: selectedPosition }) : t("adminLottery.choose")}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {selectedGender === "M" &&
@@ -302,7 +308,7 @@ export default function LotteryPage() {
                       const count = byPosition.get(pos)?.length || 0;
                       return (
                         <SelectItem key={pos} value={String(pos)} disabled={count >= groupCount}>
-                          {pos}号位 ({count}/{groupCount})
+                          {t("adminLottery.positionOption", { n: pos, count, total: groupCount })}
                         </SelectItem>
                       );
                     })}
@@ -311,12 +317,12 @@ export default function LotteryPage() {
                       const count = byPosition.get(pos)?.length || 0;
                       return (
                         <SelectItem key={pos} value={String(pos)} disabled={count >= groupCount}>
-                          {pos}号位 ({count}/{groupCount})
+                          {t("adminLottery.positionOption", { n: pos, count, total: groupCount })}
                         </SelectItem>
                       );
                     })}
                   {!selectedGender && (
-                    <SelectItem value="__" disabled>请先选择性别</SelectItem>
+                    <SelectItem value="__" disabled>{t("adminLottery.selectGenderFirst")}</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -326,7 +332,7 @@ export default function LotteryPage() {
               onClick={addParticipant}
               disabled={!selectedUserId || !selectedPosition || !selectedGender}
             >
-              添加
+              {t("adminLottery.add")}
             </Button>
           </div>
         </CardContent>
@@ -336,15 +342,15 @@ export default function LotteryPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-gray-700 flex items-center gap-2">
           <Users className="w-5 h-5 text-indigo-500" />
-          已分配位置
+          {t("adminLottery.assignedPositions")}
         </h2>
 
         {participants.length === 0 ? (
           <Card className="border-dashed border-gray-200">
             <CardContent className="py-8 text-center">
               <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500">尚无参赛者</p>
-              <p className="text-sm text-gray-400">使用上方表单添加运动员并分配位置</p>
+              <p className="text-gray-500">{t("adminLottery.noParticipants")}</p>
+              <p className="text-sm text-gray-400">{t("adminLottery.noParticipantsHint")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -362,7 +368,7 @@ export default function LotteryPage() {
                         <PositionBadge
                           gender={isMale ? "M" : "F"}
                           positionNumber={pos}
-                          suffix="号位"
+                          suffix={t("common.position.slotSuffix")}
                           className={isMale ? "border-blue-200 text-blue-600" : "border-pink-200 text-pink-600"}
                         />
                       </span>
@@ -373,7 +379,7 @@ export default function LotteryPage() {
                   </CardHeader>
                   <CardContent className="pt-2">
                     {posParticipants.length === 0 ? (
-                      <p className="text-xs text-gray-400 py-2">暂无人员</p>
+                      <p className="text-xs text-gray-400 py-2">{t("adminLottery.noMembers")}</p>
                     ) : (
                       <div className="space-y-1.5">
                         {posParticipants.map((p) => (
@@ -412,7 +418,7 @@ export default function LotteryPage() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Dices className="w-5 h-5 text-indigo-600" />
-              摇号结果
+              {t("adminLottery.lotteryResults")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -424,7 +430,7 @@ export default function LotteryPage() {
                 >
                   <span className="font-medium text-gray-800">{r.username}</span>
                   <span className="text-sm text-indigo-600">
-                    → {r.groupName} {r.position}号位
+                    → {r.groupName} {t("adminLottery.positionSlot", { n: r.position })}
                   </span>
                 </div>
               ))}

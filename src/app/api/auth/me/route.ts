@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const t = getRequestT(request);
   try {
     const user = await getCurrentUser();
 
     if (!user) {
       return NextResponse.json(
-        { error: "Not authenticated" },
+        { error: t("api.notAuthenticated") },
         { status: 401 }
       );
     }
@@ -25,7 +27,7 @@ export async function GET() {
   } catch (error) {
     console.error("Auth me error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: t("api.internalError") },
       { status: 500 }
     );
   }

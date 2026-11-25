@@ -583,3 +583,8 @@ html { scroll-behavior: smooth; }
 .team-card-enter {
   animation: team-card-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Set by the i18n boot script until I18nProvider has rendered the visitor's locale. */
+html[data-i18n-pending] body {
+  visibility: hidden;
+}

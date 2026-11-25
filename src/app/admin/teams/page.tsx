@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Palette, Save } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { useTournament } from "@/lib/tournament-context";
+import { useT } from "@/i18n/provider";
 
 interface GroupInfo {
   id: number;
@@ -26,6 +27,11 @@ interface GroupEdit {
 }
 
 export default function AdminTeamsPage() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, loading: tournamentLoading } = useTournament();
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [groupEdits, setGroupEdits] = useState<GroupEdit[]>([]);
@@ -51,7 +57,7 @@ export default function AdminTeamsPage() {
       setGroups(nextGroups);
       setGroupEdits(nextGroups.map((group) => ({ icon: group.icon, name: group.name })));
     } catch {
-      toast.error("加载队伍设置失败");
+      toast.error(tRef.current("adminTeams.loadFailed"));
     } finally {
       setLoadedTournamentId(selectedTournamentId);
       setLoading(false);
@@ -81,30 +87,30 @@ export default function AdminTeamsPage() {
 
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "保存失败");
+        toast.error(data.error || t("adminTeams.saveFailed"));
         return;
       }
 
-      toast.success("队伍设置已保存");
+      toast.success(t("adminTeams.saved"));
       await fetchGroups();
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminTeams.networkError"));
     } finally {
       setSaving(false);
     }
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminTeams.loading")}</div>;
   }
 
   if (!currentId || groups.length === 0) {
     return (
       <div className="admin-page-narrow">
-        <AdminPageHeader title="队伍设置" icon={Palette} iconClassName="w-4.5 h-4.5 text-violet-600" />
+        <AdminPageHeader title={t("adminTeams.title")} icon={Palette} iconClassName="w-4.5 h-4.5 text-violet-600" />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请先回到管理后台选择赛事并完成基础分组创建
+            {t("adminTeams.selectFirst")}
           </CardContent>
         </Card>
       </div>
@@ -114,7 +120,7 @@ export default function AdminTeamsPage() {
   return (
     <div className="admin-page-narrow">
       <AdminPageHeader
-        title="队伍设置"
+        title={t("adminTeams.title")}
         icon={Palette}
         iconClassName="w-4.5 h-4.5 text-violet-600"
         actions={(
@@ -125,7 +131,7 @@ export default function AdminTeamsPage() {
             className="bg-violet-600 hover:bg-violet-700 text-white gap-1"
           >
             <Save className="w-3.5 h-3.5" />
-            {saving ? "保存中..." : "保存"}
+            {saving ? t("adminTeams.saving") : t("adminTeams.save")}
           </Button>
         )}
       />
@@ -143,7 +149,7 @@ export default function AdminTeamsPage() {
                   setGroupEdits(next);
                 }}
                 className="w-16 text-center text-lg"
-                placeholder="图标"
+                placeholder={t("adminTeams.iconPlaceholder")}
               />
               <Input
                 value={groupEdits[index]?.name || ""}
@@ -153,7 +159,7 @@ export default function AdminTeamsPage() {
                   setGroupEdits(next);
                 }}
                 className="flex-1"
-                placeholder="队名"
+                placeholder={t("adminTeams.namePlaceholder")}
               />
             </div>
           ))}

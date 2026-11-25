@@ -4,6 +4,7 @@ import { tournamentParticipants, tournaments, users, groups } from "@/db/schema"
 import { requireAdmin } from "@/lib/auth";
 import { eq, and, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -19,13 +20,14 @@ interface ParticipantAssignmentsRequest {
 
 // GET: List all participants for a tournament (with their assigned positions)
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "需要管理员权限" }, { status: 403 });
+    return NextResponse.json({ error: t("api.adminRequired") }, { status: 403 });
   }
 
   try {
@@ -33,7 +35,7 @@ export async function GET(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -43,7 +45,7 @@ export async function GET(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     // Get all participants with user info
@@ -62,7 +64,7 @@ export async function GET(
 
     const enriched = allParticipants.map((p) => ({
       ...p,
-      username: userMap.get(p.userId)?.username || "未知",
+      username: userMap.get(p.userId)?.username || t("api.unknown"),
     }));
 
     // Calculate position limits: each position can have at most groupCount people
@@ -80,7 +82,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Get participants error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -89,10 +91,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorizedAdmin") }, { status: 403 });
   }
 
   try {
@@ -100,7 +103,7 @@ export async function POST(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const body = await request.json() as ParticipantAssignmentsRequest;
@@ -120,11 +123,11 @@ export async function POST(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     if (tournament.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const tournamentGroups = await db
@@ -144,21 +147,21 @@ export async function POST(
     for (const { userId, assignedPosition, gender } of assignments) {
       if (!Number.isInteger(userId) || !Number.isInteger(assignedPosition)) {
         return NextResponse.json(
-          { error: "userId 与 assignedPosition 必须是整数" },
+          { error: t("api.idsMustBeInt") },
           { status: 400 }
         );
       }
 
       if (gender !== "M" && gender !== "F") {
         return NextResponse.json(
-          { error: "性别必须为 M 或 F" },
+          { error: t("api.genderMustBeMF") },
           { status: 400 }
         );
       }
 
       if (assignedPosition < 1 || assignedPosition > totalPerGroup) {
         return NextResponse.json(
-          { error: `位置号必须在 1-${totalPerGroup} 之间` },
+          { error: t("api.positionRange", { max: totalPerGroup }) },
           { status: 400 }
         );
       }
@@ -166,7 +169,7 @@ export async function POST(
       const expectedGender = assignedPosition <= tournament.malesPerGroup ? "M" : "F";
       if (gender !== expectedGender) {
         return NextResponse.json(
-          { error: `位置 ${assignedPosition} 需要 ${expectedGender === "M" ? "男" : "女"}子选手` },
+          { error: t(expectedGender === "M" ? "api.needMale" : "api.needFemale", { pos: assignedPosition }) },
           { status: 400 }
         );
       }
@@ -185,7 +188,7 @@ export async function POST(
       const existingUserIds = new Set(existingUsers.map((u) => u.id));
       const missing = userIds.find((uid) => !existingUserIds.has(uid));
       if (missing !== undefined) {
-        return NextResponse.json({ error: `用户 ${missing} 不存在` }, { status: 400 });
+        return NextResponse.json({ error: t("api.userMissing", { id: missing }) }, { status: 400 });
       }
     }
 
@@ -206,7 +209,7 @@ export async function POST(
     for (const [pos, count] of positionCount) {
       if (count > groupCount) {
         return NextResponse.json(
-          { error: `位置 ${pos} 已满（上限 ${groupCount} 人）` },
+          { error: t("api.positionFull", { pos, max: groupCount }) },
           { status: 400 }
         );
       }
@@ -239,7 +242,7 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Assign participants error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -248,10 +251,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorizedAdmin") }, { status: 403 });
   }
 
   try {
@@ -259,7 +263,7 @@ export async function DELETE(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -280,6 +284,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Remove participant error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

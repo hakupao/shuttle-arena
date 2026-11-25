@@ -4,6 +4,7 @@ import { users, loginAttempts } from "@/db/schema";
 import { verifyPassword, createToken } from "@/lib/auth";
 import { isOverLimit, nextFailureState } from "@/lib/rate-limit";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -27,6 +28,7 @@ function clientIp(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const body = await request.json() as LoginRequestBody;
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: t("api.credentialsRequired") },
         { status: 400 }
       );
     }
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
     const limit = isOverLimit(attemptRow, nowSeconds);
     if (limit.limited) {
       return NextResponse.json(
-        { error: "登录尝试过于频繁，请稍后再试" },
+        { error: t("api.loginRateLimited") },
         { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
       );
     }
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
       await verifyPassword(password, DUMMY_PASSWORD_HASH);
       await recordFailure();
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: t("api.invalidCredentials") },
         { status: 401 }
       );
     }
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (!valid) {
       await recordFailure();
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: t("api.invalidCredentials") },
         { status: 401 }
       );
     }
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: t("api.internalError") },
       { status: 500 }
     );
   }

@@ -18,6 +18,7 @@ import { buildDefaultTemplate, getDefaultTeam } from "@/lib/constants";
 import type { ScoringMode } from "@/lib/constants";
 import { eq, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -80,15 +81,16 @@ function dependencyDeleteStatements(
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -98,7 +100,7 @@ export async function GET(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     const tournamentGroups = await db
@@ -149,7 +151,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Get tournament error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -157,11 +159,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -171,7 +174,7 @@ export async function PUT(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const existing = await db
@@ -181,7 +184,7 @@ export async function PUT(
       .get();
 
     if (!existing) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     const body = await request.json() as UpdateTournamentRequestBody;
@@ -207,31 +210,31 @@ export async function PUT(
       scoringMode !== "best_of_3_15" &&
       scoringMode !== "best_of_3_21"
     ) {
-      return NextResponse.json({ error: "Invalid scoring mode" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidScoringMode") }, { status: 400 });
     }
 
     if (name !== undefined && (typeof name !== "string" || name.trim().length === 0)) {
-      return NextResponse.json({ error: "Tournament name is required" }, { status: 400 });
+      return NextResponse.json({ error: t("api.tournamentNameRequired") }, { status: 400 });
     }
 
     if (courtsCount !== undefined && !isIntegerInRange(courtsCount, 1, 20)) {
-      return NextResponse.json({ error: "场地数必须在 1 到 20 之间" }, { status: 400 });
+      return NextResponse.json({ error: t("api.limitCourts") }, { status: 400 });
     }
 
     if (roundDurationMinutes !== undefined && !isIntegerInRange(roundDurationMinutes, 5, 120)) {
-      return NextResponse.json({ error: "每轮时长必须在 5 到 120 分钟之间" }, { status: 400 });
+      return NextResponse.json({ error: t("api.limitRoundDuration") }, { status: 400 });
     }
 
     if (malesPerGroup !== undefined && !isIntegerInRange(malesPerGroup, 1, 10)) {
-      return NextResponse.json({ error: "每组男生人数必须在 1 到 10 之间" }, { status: 400 });
+      return NextResponse.json({ error: t("api.limitMales") }, { status: 400 });
     }
 
     if (femalesPerGroup !== undefined && !isIntegerInRange(femalesPerGroup, 1, 10)) {
-      return NextResponse.json({ error: "每组女生人数必须在 1 到 10 之间" }, { status: 400 });
+      return NextResponse.json({ error: t("api.limitFemales") }, { status: 400 });
     }
 
     if (groupCount !== undefined && !isIntegerInRange(groupCount, 2, 20)) {
-      return NextResponse.json({ error: "小组数必须在 2 到 20 之间" }, { status: 400 });
+      return NextResponse.json({ error: t("api.limitGroups") }, { status: 400 });
     }
 
     if (
@@ -241,12 +244,12 @@ export async function PUT(
       status !== "finished" &&
       status !== "archived"
     ) {
-      return NextResponse.json({ error: "Invalid tournament status" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentStatus") }, { status: 400 });
     }
 
     // Archived tournaments are frozen — only allow status change (to unarchive)
     if (existing.status === "archived" && status === undefined) {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     // Build update object with only provided fields
@@ -323,7 +326,7 @@ export async function PUT(
         phase1.push(db.delete(groups).where(eq(groups.tournamentId, tournamentId)));
         for (let i = 0; i < nextGroupCount; i++) {
           const existingGroup = currentGroups[i];
-          const fallbackTeam = getDefaultTeam(i);
+          const fallbackTeam = getDefaultTeam(i, t);
           phase1.push(
             db.insert(groups).values({
               tournamentId,
@@ -405,19 +408,20 @@ export async function PUT(
     return NextResponse.json({ tournament: updated });
   } catch (error) {
     console.error("Update tournament error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -427,7 +431,7 @@ export async function DELETE(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const existing = await db
@@ -437,11 +441,11 @@ export async function DELETE(
       .get();
 
     if (!existing) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     if (existing.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，不能删除" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedNoDelete") }, { status: 403 });
     }
 
     const deleteWrites: BatchItem<"sqlite">[] = [
@@ -453,6 +457,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete tournament error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

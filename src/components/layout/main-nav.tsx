@@ -9,19 +9,22 @@ import { useTournament } from "@/lib/tournament-context";
 import { Home, CalendarDays, Trophy, Settings, LogIn, LogOut, Shield, Menu, X, ChevronDown, User, Users } from "lucide-react";
 import { ShuttlecockIcon } from "@/components/brand/shuttlecock-icon";
 import { SiteLogo } from "@/components/brand/site-logo";
+import { useT } from "@/i18n/provider";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 
 const publicLinks = [
-  { href: "/", label: "首页", icon: Home },
-  { href: "/teams", label: "队伍", icon: Users },
-  { href: "/schedule", label: "赛程", icon: CalendarDays },
-  { href: "/standings", label: "排名", icon: Trophy },
-];
+  { href: "/", labelKey: "common.nav.home", icon: Home },
+  { href: "/teams", labelKey: "common.nav.teams", icon: Users },
+  { href: "/schedule", labelKey: "common.nav.schedule", icon: CalendarDays },
+  { href: "/standings", labelKey: "common.nav.standings", icon: Trophy },
+] as const;
 
 const adminLinks = [
-  { href: "/admin", label: "管理后台", icon: Settings },
-];
+  { href: "/admin", labelKey: "common.nav.admin", icon: Settings },
+] as const;
 
 export function MainNav() {
+  const t = useT();
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
@@ -42,9 +45,9 @@ export function MainNav() {
 
   const isAdmin = user?.role === "admin";
   const loggedInLinks = user ? [
-    { href: "/my-matches", label: "我的比赛", icon: ShuttlecockIcon },
-    { href: "/account", label: "我的账号", icon: User },
-  ] : [];
+    { href: "/my-matches", labelKey: "common.nav.myMatches", icon: ShuttlecockIcon },
+    { href: "/account", labelKey: "common.nav.account", icon: User },
+  ] as const : [];
   const allLinks = [...publicLinks, ...loggedInLinks, ...(isAdmin ? adminLinks : [])];
 
   const handleLogout = async () => {
@@ -61,30 +64,30 @@ export function MainNav() {
       {showSwitcher && (
         <div className="w-full bg-gradient-to-r from-green-50 to-teal-50 border-b border-green-100/60">
           <div className="container mx-auto max-w-7xl px-4 flex items-center justify-center h-9 gap-2">
-            <span className="text-xs text-gray-500 hidden sm:inline">当前赛事:</span>
+            <span className="text-xs text-gray-500 hidden sm:inline">{t("common.nav.currentTournament")}</span>
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setTournamentDropdown(!tournamentDropdown)}
                 className="flex items-center gap-1.5 px-3 py-1 squircle-pill bg-white/80 border border-green-200/80 hover:border-green-400 transition-colors text-sm font-semibold text-green-800 shadow-sm"
               >
-                {currentName || "选择赛事"}
+                {currentName || t("common.nav.selectTournament")}
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${tournamentDropdown ? "rotate-180" : ""}`} />
               </button>
               {tournamentDropdown && (
                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-white squircle-lg shadow-lg border border-gray-200 py-1 min-w-[200px] z-[60]">
-                  {tournaments.map((t) => (
+                  {tournaments.map((tournament) => (
                     <button
-                      key={t.id}
+                      key={tournament.id}
                       onClick={() => {
-                        setCurrentId(t.id);
+                        setCurrentId(tournament.id);
                         setTournamentDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-sm hover:bg-green-50 transition-colors flex items-center gap-2 ${
-                        t.id === currentId ? "bg-green-50 text-green-700 font-semibold" : "text-gray-700"
+                        tournament.id === currentId ? "bg-green-50 text-green-700 font-semibold" : "text-gray-700"
                       }`}
                     >
-                      {t.id === currentId && <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />}
-                      {t.name}
+                      {tournament.id === currentId && <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />}
+                      {tournament.name}
                     </button>
                   ))}
                 </div>
@@ -115,13 +118,14 @@ export function MainNav() {
                   className={`text-sm font-semibold gap-1.5 ${isActive ? "bg-green-600 hover:bg-green-700 text-white shadow-md" : "text-gray-600 hover:text-green-700 hover:bg-green-50"}`}
                 >
                   <Icon className="w-4 h-4" />
-                  {link.label}
+                  {t(link.labelKey)}
                 </Button>
               </Link>
             );
           })}
 
-          <div className="ml-2 pl-2 border-l border-gray-200">
+          <div className="ml-2 pl-2 border-l border-gray-200 flex items-center gap-2">
+            <LanguageSwitcher />
             {loading ? null : user ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500 bg-green-50 px-2.5 py-1 squircle-pill flex items-center gap-1">
@@ -135,7 +139,7 @@ export function MainNav() {
                   onClick={handleLogout}
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  退出
+                  {t("common.nav.logout")}
                 </Button>
               </div>
             ) : (
@@ -146,7 +150,7 @@ export function MainNav() {
                   className="text-sm font-medium border-green-200 text-green-700 hover:bg-green-50 gap-1.5"
                 >
                   <LogIn className="w-4 h-4" />
-                  登录
+                  {t("common.nav.login")}
                 </Button>
               </Link>
             )}
@@ -154,6 +158,7 @@ export function MainNav() {
         </nav>
 
         <div className="md:hidden flex items-center gap-2 min-w-0">
+          <LanguageSwitcher compact />
           {!loading && user && (
             <Link href={isAdmin ? "/admin" : "/my-matches"} className="min-w-0 max-w-[11rem]">
               <Button
@@ -174,7 +179,7 @@ export function MainNav() {
                 className="h-8 squircle-pill border-green-200 px-2.5 text-xs font-medium text-green-700 hover:bg-green-50"
               >
                 <LogIn className="h-3.5 w-3.5" />
-                登录
+                {t("common.nav.login")}
               </Button>
             </Link>
           )}
@@ -197,7 +202,7 @@ export function MainNav() {
                     className={`w-full justify-start font-semibold gap-2 ${isActive ? "bg-green-600 text-white" : "text-gray-600"}`}
                   >
                     <Icon className="w-4 h-4" />
-                    {link.label}
+                    {t(link.labelKey)}
                   </Button>
                 </Link>
               );
@@ -215,14 +220,14 @@ export function MainNav() {
                     onClick={handleLogout}
                   >
                     <LogOut className="w-4 h-4" />
-                    退出登录
+                    {t("common.nav.logoutFull")}
                   </Button>
                 </>
               ) : (
                 <Link href="/login" onClick={() => setOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start text-green-700 gap-2">
                     <LogIn className="w-4 h-4" />
-                    登录
+                    {t("common.nav.login")}
                   </Button>
                 </Link>
               )}

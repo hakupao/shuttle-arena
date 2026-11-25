@@ -6,6 +6,8 @@ import { useTournament } from "@/lib/tournament-context";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useT } from "@/i18n/provider";
+import type { TFunction } from "@/i18n/translate";
 import { Trophy, Users, User, Award, Handshake, MapPin } from "lucide-react";
 
 interface GroupStanding {
@@ -146,12 +148,12 @@ function RankCell({ index }: { index: number }) {
   return <span className="text-gray-500 font-medium">{index + 1}</span>;
 }
 
-function formatComboName(name: string | null, icon: string, pos: number) {
-  return name || `${icon}${pos}号`;
+function formatComboName(t: TFunction, name: string | null, icon: string, pos: number) {
+  return name || `${icon}${pos}${t("common.position.suffix")}`;
 }
 
-function formatPlayerName(player: PlayerStat) {
-  return player.playerName || `${player.groupIcon}${player.positionNumber}号`;
+function formatPlayerName(t: TFunction, player: PlayerStat) {
+  return player.playerName || `${player.groupIcon}${player.positionNumber}${t("common.position.suffix")}`;
 }
 
 function formatSignedStat(value: number) {
@@ -159,6 +161,7 @@ function formatSignedStat(value: number) {
 }
 
 function StandingsContent() {
+  const t = useT();
   const { currentId, loading: tournamentLoading } = useTournament();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loadedTournamentId, setLoadedTournamentId] = useState<number | null>(null);
@@ -215,7 +218,7 @@ function StandingsContent() {
       );
     }
 
-    setFeedbackText(next ? "彩蛋已开启" : "裁判页已收起");
+    setFeedbackText(next ? t("standings.eggOn") : t("standings.eggOff"));
     setFeedbackTone(next ? "open" : "close");
     setEffectBurstId((current) => current + 1);
     setFeedbackVisible(true);
@@ -228,12 +231,12 @@ function StandingsContent() {
     }
 
     if (next) {
-      toast.success("彩蛋已开启", {
-        description: "已进入裁判页，再长按标题可收起",
+      toast.success(t("standings.eggOn"), {
+        description: t("standings.eggOnDesc"),
       });
     } else {
-      toast("裁判页已收起", {
-        description: "已回到普通排名",
+      toast(t("standings.eggOff"), {
+        description: t("standings.eggOffDesc"),
       });
     }
   };
@@ -290,7 +293,7 @@ function StandingsContent() {
   }, [currentId, showRefereeTab, tournamentLoading]);
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId)) {
-    return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
+    return <div className="text-center py-12 text-muted-foreground">{t("standings.loading")}</div>;
   }
 
   if (!currentId) {
@@ -298,12 +301,12 @@ function StandingsContent() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <Trophy className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">排名 & 统计</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("standings.title")}</h1>
         </div>
         <Card className="border-dashed border-border/50">
           <CardContent className="py-10 text-center">
             <Trophy className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">暂无可查看的赛事</p>
+            <p className="text-sm text-muted-foreground">{t("standings.noTournament")}</p>
           </CardContent>
         </Card>
       </div>
@@ -315,12 +318,12 @@ function StandingsContent() {
       <div className="space-y-4 max-w-lg mx-auto">
         <div className="flex items-center gap-2">
           <Trophy className="w-4.5 h-4.5 text-green-700" />
-          <h1 className="text-lg font-bold text-green-900">排名 & 统计</h1>
+          <h1 className="text-lg font-bold text-green-900">{t("standings.title")}</h1>
         </div>
         <Card className="border-dashed border-border/50">
           <CardContent className="py-10 text-center">
             <Trophy className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">暂无数据</p>
+            <p className="text-sm text-muted-foreground">{t("standings.noData")}</p>
           </CardContent>
         </Card>
       </div>
@@ -364,11 +367,11 @@ function StandingsContent() {
           onTouchCancel={handleTitlePressEnd}
           onContextMenu={(event) => event.preventDefault()}
         >
-          排名 & 统计
+          {t("standings.title")}
         </h1>
         {pressing && (
           <span className="text-xs text-emerald-500/80 animate-pulse ml-1 select-none">
-            长按中...
+            {t("standings.pressing")}
           </span>
         )}
       </div>
@@ -438,26 +441,26 @@ function StandingsContent() {
             <TabsList className={`w-full grid bg-green-50/80 h-10`} style={{ gridTemplateColumns: `repeat(${totalCols}, minmax(0, 1fr))` }}>
               <TabsTrigger value="group" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs sm:text-sm gap-1">
                 <Users className="w-3.5 h-3.5" />
-                团体
+                {t("standings.tabGroup")}
               </TabsTrigger>
               <TabsTrigger value="combo" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs sm:text-sm gap-1">
                 <Handshake className="w-3.5 h-3.5" />
-                组合
+                {t("standings.tabCombo")}
               </TabsTrigger>
               <TabsTrigger value="player" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs sm:text-sm gap-1">
                 <User className="w-3.5 h-3.5" />
-                个人
+                {t("standings.tabPlayer")}
               </TabsTrigger>
               {hasSharedPositions && (
                 <TabsTrigger value="position" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs sm:text-sm gap-1">
                   <MapPin className="w-3.5 h-3.5" />
-                  位置
+                  {t("standings.tabPosition")}
                 </TabsTrigger>
               )}
               {showRefereeTab && (
                 <TabsTrigger value="referee" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs sm:text-sm gap-1">
                   <Award className="w-3.5 h-3.5" />
-                  裁判
+                  {t("standings.tabReferee")}
                 </TabsTrigger>
               )}
             </TabsList>
@@ -473,15 +476,15 @@ function StandingsContent() {
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50/60">
                       <th className="p-3 text-left font-semibold text-green-800">#</th>
-                      <th className="p-3 text-left font-semibold text-green-800">小组</th>
-                      <th className="p-3 text-center font-semibold text-green-700">积分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">平场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">负场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">得分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">失分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜球</th>
+                      <th className="p-3 text-left font-semibold text-green-800">{t("standings.colGroup")}</th>
+                      <th className="p-3 text-center font-semibold text-green-700">{t("standings.colPoints")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colWins")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colDraws")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colLosses")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetGames")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsFor")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsAgainst")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetPoints")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -526,14 +529,14 @@ function StandingsContent() {
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50/60">
                       <th className="p-3 text-left font-semibold text-green-800">#</th>
-                      <th className="p-3 text-left font-semibold text-green-800">组合</th>
-                      <th className="p-3 text-center font-semibold text-green-800">胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">负场</th>
-                      <th className="p-3 text-center font-semibold text-green-700">胜率</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">得分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">失分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜球</th>
+                      <th className="p-3 text-left font-semibold text-green-800">{t("standings.colCombo")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colWins")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colLosses")}</th>
+                      <th className="p-3 text-center font-semibold text-green-700">{t("standings.colWinRate")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetGames")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsFor")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsAgainst")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetPoints")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -544,11 +547,11 @@ function StandingsContent() {
                           <td className="p-3">
                             <div className="flex items-center gap-1.5">
                               <span className="font-medium text-gray-800">
-                                {formatComboName(c.player1Name, c.player1GroupIcon, c.player1Position)}
+                                {formatComboName(t, c.player1Name, c.player1GroupIcon, c.player1Position)}
                               </span>
                               <span className="text-gray-400">+</span>
                               <span className="font-medium text-gray-800">
-                                {formatComboName(c.player2Name, c.player2GroupIcon, c.player2Position)}
+                                {formatComboName(t, c.player2Name, c.player2GroupIcon, c.player2Position)}
                               </span>
                             </div>
                           </td>
@@ -574,7 +577,7 @@ function StandingsContent() {
                     {(!stats.combinationStats || stats.combinationStats.length === 0) && (
                       <tr>
                         <td colSpan={9} className="p-8 text-center text-gray-400">
-                          暂无组合数据
+                          {t("standings.emptyCombo")}
                         </td>
                       </tr>
                     )}
@@ -594,14 +597,14 @@ function StandingsContent() {
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50/60">
                       <th className="p-3 text-left font-semibold text-green-800">#</th>
-                      <th className="p-3 text-left font-semibold text-green-800">选手</th>
-                      <th className="p-3 text-center font-semibold text-green-800">胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">负场</th>
-                      <th className="p-3 text-center font-semibold text-green-700">胜率</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">得分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">失分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜球</th>
+                      <th className="p-3 text-left font-semibold text-green-800">{t("standings.colPlayer")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colWins")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colLosses")}</th>
+                      <th className="p-3 text-center font-semibold text-green-700">{t("standings.colWinRate")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetGames")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsFor")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsAgainst")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetPoints")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -609,9 +612,9 @@ function StandingsContent() {
                       <tr key={p.playerId} className="border-b border-gray-100/80 hover:bg-green-50/40 transition-colors">
                         <td className="p-3"><RankCell index={idx} /></td>
                         <td className="p-3">
-                          <span className="font-medium text-gray-800">{formatPlayerName(p)}</span>
+                          <span className="font-medium text-gray-800">{formatPlayerName(t, p)}</span>
                           <Badge variant="outline" className={`ml-2 text-[10px] px-1 py-0 ${p.gender === "M" ? "border-blue-300 text-blue-600 bg-blue-50/60" : "border-pink-300 text-pink-600 bg-pink-50/60"}`}>
-                            {p.gender === "M" ? "男" : "女"}
+                            {p.gender === "M" ? t("standings.male") : t("standings.female")}
                           </Badge>
                         </td>
                         <td className="p-3 text-center text-green-600 font-medium">{p.wins}</td>
@@ -636,7 +639,7 @@ function StandingsContent() {
                     {stats.playerStats.length === 0 && (
                       <tr>
                         <td colSpan={9} className="p-8 text-center text-gray-400">
-                          暂无个人数据
+                          {t("standings.emptyPlayer")}
                         </td>
                       </tr>
                     )}
@@ -656,15 +659,15 @@ function StandingsContent() {
                   <thead>
                     <tr className="border-b border-green-100 bg-green-50/60">
                       <th className="p-3 text-left font-semibold text-green-800">#</th>
-                      <th className="p-3 text-left font-semibold text-green-800">位置</th>
-                      <th className="p-3 text-left font-semibold text-green-800">选手</th>
-                      <th className="p-3 text-center font-semibold text-green-800">胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">负场</th>
-                      <th className="p-3 text-center font-semibold text-green-700">胜率</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜场</th>
-                      <th className="p-3 text-center font-semibold text-green-800">得分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">失分</th>
-                      <th className="p-3 text-center font-semibold text-green-800">净胜球</th>
+                      <th className="p-3 text-left font-semibold text-green-800">{t("standings.colPosition")}</th>
+                      <th className="p-3 text-left font-semibold text-green-800">{t("standings.colPlayer")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colWins")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colLosses")}</th>
+                      <th className="p-3 text-center font-semibold text-green-700">{t("standings.colWinRate")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetGames")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsFor")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colPointsAgainst")}</th>
+                      <th className="p-3 text-center font-semibold text-green-800">{t("standings.colNetPoints")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -675,17 +678,17 @@ function StandingsContent() {
                           <td className="p-3"><RankCell index={idx} /></td>
                           <td className="p-3">
                             <span className="text-lg mr-1">{p.groupIcon}</span>
-                            <span className="font-medium text-gray-800">{p.positionNumber}号位</span>
+                            <span className="font-medium text-gray-800">{p.positionNumber}{t("common.position.slotSuffix")}</span>
                             <Badge variant="outline" className={`ml-1.5 text-[10px] px-1 py-0 ${p.gender === "M" ? "border-blue-300 text-blue-600 bg-blue-50/60" : "border-pink-300 text-pink-600 bg-pink-50/60"}`}>
-                              {p.gender === "M" ? "男" : "女"}
+                              {p.gender === "M" ? t("standings.male") : t("standings.female")}
                             </Badge>
                           </td>
                           <td className="p-3">
                             <div className="flex flex-col gap-0.5">
                               {p.players.map(pl => (
                                 <span key={pl.id} className={`text-xs ${pl.slotIndex === 1 ? "text-gray-800" : "text-amber-700"}`}>
-                                  {pl.name || (pl.slotIndex === 1 ? "主" : "轮换")}
-                                  {pl.slotIndex === 2 && <span className="text-[10px] text-amber-500 ml-0.5">(轮换)</span>}
+                                  {pl.name || (pl.slotIndex === 1 ? t("standings.primary") : t("standings.rotation"))}
+                                  {pl.slotIndex === 2 && <span className="text-[10px] text-amber-500 ml-0.5">{t("standings.rotationParen")}</span>}
                                 </span>
                               ))}
                             </div>
@@ -712,7 +715,7 @@ function StandingsContent() {
                     {(!stats.positionStats || stats.positionStats.filter(p => p.players.length > 1).length === 0) && (
                       <tr>
                         <td colSpan={10} className="p-8 text-center text-gray-400">
-                          暂无共享位置数据
+                          {t("standings.emptyPosition")}
                         </td>
                       </tr>
                     )}
@@ -732,10 +735,10 @@ function StandingsContent() {
                     <thead>
                       <tr className="border-b border-amber-100 bg-amber-50/40">
                         <th className="p-3 text-left font-semibold text-amber-800">#</th>
-                        <th className="p-3 text-left font-semibold text-amber-800">选手</th>
-                        <th className="p-3 text-center font-semibold text-amber-800">裁判</th>
-                        <th className="p-3 text-center font-semibold text-amber-800">边裁</th>
-                        <th className="p-3 text-center font-semibold text-amber-700">总计</th>
+                        <th className="p-3 text-left font-semibold text-amber-800">{t("standings.colPlayer")}</th>
+                        <th className="p-3 text-center font-semibold text-amber-800">{t("standings.colReferee")}</th>
+                        <th className="p-3 text-center font-semibold text-amber-800">{t("standings.colLineJudge")}</th>
+                        <th className="p-3 text-center font-semibold text-amber-700">{t("standings.colTotal")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -745,7 +748,7 @@ function StandingsContent() {
                           <tr key={r.playerId} className="border-b border-gray-100/80 hover:bg-amber-50/40 transition-colors">
                             <td className="p-3"><RankCell index={idx} /></td>
                             <td className="p-3">
-                              <span className="font-medium text-gray-800">{r.playerName || "未知选手"}</span>
+                              <span className="font-medium text-gray-800">{r.playerName || t("standings.unknownPlayer")}</span>
                             </td>
                             <td className="p-3 text-center text-gray-700">{r.refereeCount}</td>
                             <td className="p-3 text-center text-gray-700">{r.lineJudgeCount}</td>
@@ -755,7 +758,7 @@ function StandingsContent() {
                       {(!stats.refereeLeaderboard || stats.refereeLeaderboard.length === 0) && (
                         <tr>
                           <td colSpan={5} className="p-8 text-center text-gray-400">
-                            暂无裁判记录
+                            {t("standings.emptyReferee")}
                           </td>
                         </tr>
                       )}
@@ -771,9 +774,14 @@ function StandingsContent() {
   );
 }
 
+function StandingsFallback() {
+  const t = useT();
+  return <div className="text-center py-12 text-muted-foreground">{t("standings.loading")}</div>;
+}
+
 export default function StandingsPage() {
   return (
-    <Suspense fallback={<div className="text-center py-12 text-muted-foreground">加载中...</div>}>
+    <Suspense fallback={<StandingsFallback />}>
       <StandingsContent />
     </Suspense>
   );

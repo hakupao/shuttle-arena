@@ -10,13 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PenLine, Trophy, Eye, Edit3, Home, CalendarDays } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useT } from "@/i18n/provider";
+import { matchTypeLabel } from "@/i18n/labels";
+import type { TFunction } from "@/i18n/translate";
 import { ScoreTimelineCard, type ScoreTimelineEvent } from "@/components/match/score-timeline-card";
-
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  MD: "男双",
-  WD: "女双",
-  XD: "混双",
-};
 
 interface MatchDetail {
   id: number;
@@ -34,14 +31,15 @@ interface MatchDetail {
   scoreEvents?: ScoreTimelineEvent[];
 }
 
-function formatPlayerName(player: { name: string | null; position: number; boundUsername?: string | null }, groupIcon: string) {
-  const codename = `${groupIcon}${player.position}号`;
+function formatPlayerName(t: TFunction, player: { name: string | null; position: number; boundUsername?: string | null }, groupIcon: string) {
+  const codename = `${groupIcon}${player.position}${t("common.position.suffix")}`;
   const displayName = player.boundUsername || player.name;
   if (displayName) return `${codename}(${displayName})`;
   return codename;
 }
 
 export default function MatchDetailPage() {
+  const t = useT();
   const params = useParams();
   const { user } = useAuth();
   const matchId = params.id as string;
@@ -62,8 +60,8 @@ export default function MatchDetailPage() {
       .catch(() => setLoading(false));
   }, [matchId]);
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">加载中...</div>;
-  if (!match) return <div className="text-center py-12 text-muted-foreground">比赛不存在</div>;
+  if (loading) return <div className="text-center py-12 text-muted-foreground">{t("match.loading")}</div>;
+  if (!match) return <div className="text-center py-12 text-muted-foreground">{t("match.notFound")}</div>;
 
   const isFinished = match.status === "finished";
 
@@ -72,10 +70,10 @@ export default function MatchDetailPage() {
       {/* Navigation */}
       <div className="flex items-center gap-2">
         <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-colors">
-          <Home className="w-3.5 h-3.5" /> 返回主页
+          <Home className="w-3.5 h-3.5" /> {t("match.backHome")}
         </Link>
         <Link href="/schedule" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 transition-colors">
-          <CalendarDays className="w-3.5 h-3.5" /> 返回赛程
+          <CalendarDays className="w-3.5 h-3.5" /> {t("match.backSchedule")}
         </Link>
       </div>
 
@@ -85,10 +83,10 @@ export default function MatchDetailPage() {
           <div className="p-6 md:p-8">
             <div className="flex items-center justify-between mb-4">
               <Badge variant="outline" className="border-white/40 text-white bg-white/10">
-                第 {match.roundNumber} 轮 · 场地 {match.courtNumber}
+                {t("match.roundCourt", { round: match.roundNumber, court: match.courtNumber })}
               </Badge>
               <Badge className={isFinished ? "bg-white text-green-700" : match.status === "in_progress" ? "bg-amber-400 text-amber-900" : "bg-white/20 text-white"}>
-                {isFinished ? "已完成" : match.status === "in_progress" ? "进行中" : "待开始"}
+                {isFinished ? t("match.finished") : match.status === "in_progress" ? t("match.inProgress") : t("match.pending")}
               </Badge>
             </div>
 
@@ -98,14 +96,14 @@ export default function MatchDetailPage() {
                 <div className="text-4xl md:text-5xl mb-2">{match.homeGroup.icon}</div>
                 <div className="font-bold md:text-lg">{match.homeGroup.name}</div>
                 <div className="text-sm text-white/70 mt-1">
-                  {match.homePlayers.map((p) => formatPlayerName(p, match.homeGroup.icon)).join(" + ")}
+                  {match.homePlayers.map((p) => formatPlayerName(t, p, match.homeGroup.icon)).join(" + ")}
                 </div>
               </div>
 
               {/* Score */}
               <div className="text-center">
                 <Badge variant="outline" className="mb-2 border-white/40 text-white bg-white/10">
-                  {MATCH_TYPE_LABELS[match.matchType] || match.matchType}
+                  {matchTypeLabel(t, match.matchType)}
                 </Badge>
                 {isFinished && match.games.length > 0 ? (
                   <div className="space-y-1">
@@ -127,7 +125,7 @@ export default function MatchDetailPage() {
                 <div className="text-4xl md:text-5xl mb-2">{match.awayGroup.icon}</div>
                 <div className="font-bold md:text-lg">{match.awayGroup.name}</div>
                 <div className="text-sm text-white/70 mt-1">
-                  {match.awayPlayers.map((p) => formatPlayerName(p, match.awayGroup.icon)).join(" + ")}
+                  {match.awayPlayers.map((p) => formatPlayerName(t, p, match.awayGroup.icon)).join(" + ")}
                 </div>
               </div>
             </div>
@@ -136,7 +134,7 @@ export default function MatchDetailPage() {
               <div className="text-center mt-4">
                 <Badge className="bg-yellow-400 text-yellow-900 font-bold gap-1">
                   <Trophy className="w-3.5 h-3.5" />
-                  {match.winner === "home" ? match.homeGroup.name : match.awayGroup.name} 获胜
+                  {t("match.wins", { name: match.winner === "home" ? match.homeGroup.name : match.awayGroup.name })}
                 </Badge>
               </div>
             )}
@@ -150,7 +148,7 @@ export default function MatchDetailPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-gray-800 flex items-center gap-2">
               <Eye className="w-4 h-4 text-gray-500" />
-              裁判 & 边裁
+              {t("match.refereesTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -158,9 +156,9 @@ export default function MatchDetailPage() {
               {match.referees.map((ref, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {ref.role === "referee" ? "裁判" : "边裁"}
+                    {ref.role === "referee" ? t("match.referee") : t("match.lineJudge")}
                   </Badge>
-                  <span>{ref.groupIcon} {ref.playerName || `${ref.position}号位`}</span>
+                  <span>{ref.groupIcon} {ref.playerName || `${ref.position}${t("common.position.slotSuffix")}`}</span>
                 </div>
               ))}
             </div>
@@ -173,7 +171,7 @@ export default function MatchDetailPage() {
         <Link href={`/match/${match.id}/scoring`} prefetch={false} className="block">
           <Button className={`w-full gap-2 ${isFinished ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"}`} size="lg">
             {isFinished ? <Edit3 className="w-4 h-4" /> : <PenLine className="w-4 h-4" />}
-            {isFinished ? "编辑比分" : "进入记分"}
+            {isFinished ? t("match.editScore") : t("match.enterScoring")}
           </Button>
         </Link>
       )}

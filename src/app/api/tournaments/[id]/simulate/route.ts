@@ -5,6 +5,7 @@ import { runSimulation } from "@/lib/engine";
 import type { SimulationParams } from "@/lib/engine";
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -12,17 +13,18 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: t("api.unauthorized") }, { status: 401 });
   }
 
   try {
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const db = getDb();
@@ -33,7 +35,7 @@ export async function POST(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     const tournamentGroups = await db
@@ -87,7 +89,7 @@ export async function POST(
       })),
     };
 
-    const result = runSimulation(simParams);
+    const result = runSimulation(simParams, t);
 
     // Include group info for frontend display
     const groupsInfo = tournamentGroups
@@ -97,6 +99,6 @@ export async function POST(
     return NextResponse.json({ ...result, groups: groupsInfo });
   } catch (error) {
     console.error("Simulate error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

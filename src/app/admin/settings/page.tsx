@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/layout/admin-page-header";
 import { useTournament } from "@/lib/tournament-context";
+import { useT } from "@/i18n/provider";
 
 interface TournamentDetail {
   id: number;
@@ -23,6 +24,11 @@ interface TournamentResponse {
 }
 
 export default function AdminSettingsPage() {
+  const t = useT();
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { currentId, refresh, loading: tournamentLoading } = useTournament();
   const [tournament, setTournament] = useState<TournamentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +65,7 @@ export default function AdminSettingsPage() {
         });
       }
     } catch {
-      toast.error("加载赛事设置失败");
+      toast.error(tRef.current("adminSettings.loadFailed"));
     } finally {
       setLoadedTournamentId(selectedTournamentId);
       setLoading(false);
@@ -88,31 +94,31 @@ export default function AdminSettingsPage() {
 
       if (!res.ok) {
         const data = await res.json() as { error?: string };
-        toast.error(data.error || "保存失败");
+        toast.error(data.error || t("adminSettings.saveFailed"));
         return;
       }
 
-      toast.success("赛事设置已保存");
+      toast.success(t("adminSettings.saved"));
       await refresh();
       await fetchTournament();
     } catch {
-      toast.error("网络错误");
+      toast.error(t("adminSettings.networkError"));
     } finally {
       setSaving(false);
     }
   };
 
   if (tournamentLoading || (currentId !== null && loadedTournamentId !== currentId) || loading) {
-    return <div className="text-center py-12 text-gray-400">加载中...</div>;
+    return <div className="text-center py-12 text-gray-400">{t("adminSettings.loading")}</div>;
   }
 
   if (!currentId || !tournament) {
     return (
       <div className="admin-page-narrow">
-        <AdminPageHeader title="赛事设置" icon={Settings2} iconClassName="w-4.5 h-4.5 text-emerald-600" />
+        <AdminPageHeader title={t("adminSettings.title")} icon={Settings2} iconClassName="w-4.5 h-4.5 text-emerald-600" />
         <Card className="border-dashed border-gray-200">
           <CardContent className="py-10 text-center text-gray-400 text-sm">
-            请先回到管理后台选择一个赛事
+            {t("adminSettings.selectFirst")}
           </CardContent>
         </Card>
       </div>
@@ -122,7 +128,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="admin-page-narrow">
       <AdminPageHeader
-        title="赛事设置"
+        title={t("adminSettings.title")}
         icon={Settings2}
         iconClassName="w-4.5 h-4.5 text-emerald-600"
         actions={(
@@ -132,7 +138,7 @@ export default function AdminSettingsPage() {
             disabled={saving || !form.name.trim()}
             className="bg-emerald-600 hover:bg-emerald-700 text-white"
           >
-            {saving ? "保存中..." : "保存"}
+            {saving ? t("adminSettings.saving") : t("adminSettings.save")}
           </Button>
         )}
       />
@@ -140,7 +146,7 @@ export default function AdminSettingsPage() {
       <Card className="border-gray-200">
         <CardContent className="pt-5 space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-gray-600 text-sm">赛事名称</Label>
+            <Label className="text-gray-600 text-sm">{t("adminSettings.name")}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -148,7 +154,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-gray-600 text-sm">比赛日期</Label>
+            <Label className="text-gray-600 text-sm">{t("adminSettings.date")}</Label>
             <Input
               type="date"
               value={form.eventDate}
@@ -158,7 +164,7 @@ export default function AdminSettingsPage() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="min-w-0 space-y-1.5">
-              <Label className="text-gray-600 text-sm">开始时间</Label>
+              <Label className="text-gray-600 text-sm">{t("adminSettings.startTime")}</Label>
               <Input
                 type="time"
                 value={form.startTime}
@@ -166,7 +172,7 @@ export default function AdminSettingsPage() {
               />
             </div>
             <div className="min-w-0 space-y-1.5">
-              <Label className="text-gray-600 text-sm">结束时间</Label>
+              <Label className="text-gray-600 text-sm">{t("adminSettings.endTime")}</Label>
               <Input
                 type="time"
                 value={form.endTime}

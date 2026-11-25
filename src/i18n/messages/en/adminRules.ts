@@ -1,0 +1,36 @@
+import type { Messages } from "../zh";
+
+const adminRules: Messages["adminRules"] = {
+  loadFailed: "Failed to load format settings",
+  templateReset: "Template draft reset to the default for the current roster",
+  noChanges: "There are no changes to save",
+  warnGroupCount: "Changing the number of teams will clear the official schedule and rebuild all team slots for the new team count.",
+  warnRosterShape: "Changing the men/women per team will clear the official schedule, position assignments and account links, and reset the template structure.",
+  warnTemplate: "Saving the match template will clear the current official schedule, along with entered scores, referee records and the scoring timeline.",
+  saveGroupFailed: "Failed to save team settings",
+  saveTemplateFailed: "Failed to save match template",
+  saved: "Format settings saved",
+  networkError: "Network error",
+  loading: "Loading...",
+  title: "Format settings",
+  selectTournamentFirst: "Go back to the admin dashboard and select a tournament first",
+  resetTemplate: "Reset to default",
+  saving: "Saving...",
+  saveSettings: "Save settings",
+  groupSetup: "Team setup",
+  groupCount: "Number of teams",
+  malesPerGroup: "Men per team",
+  femalesPerGroup: "Women per team",
+  playersPerGroup: "Players per team",
+  peopleCount: "{n}",
+  totalPlayers: "Total players",
+  positionSetup: "Positions",
+  totalMatches: "Total matches",
+  matchTemplate: "Match template",
+  addMatch: "Add match",
+  lineup: "Lineup",
+  mirrorHint: "Away side mirrors automatically: Team A {p1} + {p2} vs Team B {p1} + {p2}",
+  noMatches: "No matches yet. Click \"Add match\" to start configuring",
+};
+
+export default adminRules;

@@ -1,0 +1,38 @@
+import type { Messages } from "../zh";
+
+const adminPlayers: Messages["adminPlayers"] = {
+  loadFailed: "読み込みに失敗しました",
+  unbound: "未連携",
+  savedChanges: "{n}件の変更を保存しました",
+  saveFailed: "保存に失敗しました",
+  networkError: "ネットワークエラー",
+  alternateAdded: "交代枠を追加しました",
+  addFailed: "追加に失敗しました",
+  alternateRemoved: "交代枠を削除しました",
+  removeFailed: "削除に失敗しました",
+  loading: "読み込み中...",
+  title: "選手設定",
+  noGroups: "グループデータがありません",
+  noTournament: "大会が選択されていません",
+  noGroupsHint: "先に大会形式の設定でグループを編成してください",
+  noTournamentHint: "先に管理画面で大会を選択してください",
+  badgeSummary: "連携 {bound}/{total} · 名前設定 {named}/{total}",
+  clearAll: "すべてクリア",
+  saving: "保存中...",
+  saveChanges: "変更を保存",
+  saveChangesCount: "変更を保存 ({n})",
+  registeredAthletes: "登録済み選手: {n}",
+  boundStat: "連携済み: {bound}/{total}",
+  alternateNamePlaceholder: "交代選手名",
+  namePlaceholder: "名前を入力（初期値: {icon}{n}番）",
+  bindAccountOptional: "アカウント連携（任意）",
+  noBinding: "名前を手入力（アカウントと連携しない）",
+  boundSuffix: "(連携済み)",
+  removeAlternate: "交代枠を削除",
+  addAlternate: "交代枠を追加",
+  changesCount: "{n}件の変更",
+  undo: "元に戻す",
+  save: "保存",
+};
+
+export default adminPlayers;

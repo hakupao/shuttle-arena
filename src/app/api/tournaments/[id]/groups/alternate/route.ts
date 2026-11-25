@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { players, users, matches } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -11,10 +12,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorized") }, { status: 403 });
   }
 
   try {
@@ -22,7 +24,7 @@ export async function POST(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const body = await request.json() as {
@@ -51,7 +53,7 @@ export async function POST(
 
     if (!primaryPlayer) {
       return NextResponse.json(
-        { error: "该位置不存在主选手" },
+        { error: t("api.altNoPrimary") },
         { status: 400 }
       );
     }
@@ -66,7 +68,7 @@ export async function POST(
 
     if (existingAlternate) {
       return NextResponse.json(
-        { error: "该位置已有轮换选手" },
+        { error: t("api.altAlreadyExists") },
         { status: 400 }
       );
     }
@@ -106,7 +108,7 @@ export async function POST(
     return NextResponse.json({ player: newPlayer }, { status: 201 });
   } catch (error) {
     console.error("Add alternate error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -115,10 +117,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorized") }, { status: 403 });
   }
 
   try {
@@ -126,7 +129,7 @@ export async function DELETE(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const body = await request.json() as { playerId?: number };
@@ -144,12 +147,12 @@ export async function DELETE(
       .get();
 
     if (!player || player.tournamentId !== tournamentId) {
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.playerNotFound") }, { status: 404 });
     }
 
     if (player.slotIndex !== 2) {
       return NextResponse.json(
-        { error: "只能删除轮换选手（slotIndex=2）" },
+        { error: t("api.altOnlyDeleteAlternate") },
         { status: 400 }
       );
     }
@@ -170,7 +173,7 @@ export async function DELETE(
 
     if (isReferenced) {
       return NextResponse.json(
-        { error: "该轮换选手已被排入赛程，请先在换人管理中替换回主选手" },
+        { error: t("api.altScheduled") },
         { status: 400 }
       );
     }
@@ -194,6 +197,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Remove alternate error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

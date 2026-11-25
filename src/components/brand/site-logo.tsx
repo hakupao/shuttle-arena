@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { ShuttlecockIcon } from "@/components/brand/shuttlecock-icon";
+import { useT } from "@/i18n/provider";
 
 interface SiteLogoProps {
   className?: string;
@@ -48,6 +49,7 @@ export function SiteLogo({
   showSubtitle = false,
   centered = false,
 }: SiteLogoProps) {
+  const t = useT();
   const config = sizeMap[size];
 
   return (
@@ -68,7 +70,7 @@ export function SiteLogo({
         </div>
         {showSubtitle && (
           <p className={cn("font-medium text-gray-400", config.subtitle, subtitleClassName)}>
-            羽球竞技场 · 团体循环赛管理系统
+            {t("common.brand.tagline")}
           </p>
         )}
       </div>

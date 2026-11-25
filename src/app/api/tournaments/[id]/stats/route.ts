@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { computeGroupStandings } from "@/lib/standings";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -90,6 +91,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const includeRefereeLeaderboard =
@@ -97,7 +99,7 @@ export async function GET(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -107,7 +109,7 @@ export async function GET(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     const allGroups = await db
@@ -457,6 +459,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Stats error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

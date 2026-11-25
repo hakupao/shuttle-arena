@@ -5,6 +5,7 @@ import {
   DEFAULT_MAX_CONSECUTIVE_PLAYING_LIMIT,
   DEFAULT_MAX_CONSECUTIVE_RESTING_LIMIT,
 } from "@/lib/constants";
+import { useT } from "@/i18n/provider";
 import { FileText, AlertTriangle } from "lucide-react";
 
 interface PlayerStat {
@@ -33,6 +34,7 @@ export function QualityReport({
   maxConsecutivePlayingLimit = DEFAULT_MAX_CONSECUTIVE_PLAYING_LIMIT,
   maxConsecutiveRestingLimit = DEFAULT_MAX_CONSECUTIVE_RESTING_LIMIT,
 }: QualityReportProps) {
+  const t = useT();
   const hasWarnings = playerStats.some(
     (p) =>
       p.maxConsecutivePlaying > maxConsecutivePlayingLimit ||
@@ -43,11 +45,11 @@ export function QualityReport({
     <Card className="border-green-100 shadow-sm bg-white overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base text-gray-700 flex items-center gap-1.5"><FileText className="w-4 h-4" /> 排布质量报告</CardTitle>
+          <CardTitle className="text-base text-gray-700 flex items-center gap-1.5"><FileText className="w-4 h-4" /> {t("components.qualityReport.title")}</CardTitle>
           {hasWarnings ? (
-            <span className="text-xs font-bold px-2.5 py-1 squircle-pill bg-red-100 text-red-600 border border-red-200">有异常</span>
+            <span className="text-xs font-bold px-2.5 py-1 squircle-pill bg-red-100 text-red-600 border border-red-200">{t("components.qualityReport.hasIssues")}</span>
           ) : (
-            <span className="text-xs font-bold px-2.5 py-1 squircle-pill bg-green-100 text-green-600 border border-green-200">质量良好</span>
+            <span className="text-xs font-bold px-2.5 py-1 squircle-pill bg-green-100 text-green-600 border border-green-200">{t("components.qualityReport.good")}</span>
           )}
         </div>
       </CardHeader>
@@ -56,19 +58,19 @@ export function QualityReport({
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-green-100 bg-green-50/50">
-                <th className="p-3 text-left font-semibold text-gray-600 whitespace-nowrap">代号</th>
-                <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">性别</th>
-                <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">总上场</th>
+                <th className="p-3 text-left font-semibold text-gray-600 whitespace-nowrap">{t("components.qualityReport.colCode")}</th>
+                <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">{t("components.qualityReport.colGender")}</th>
+                <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">{t("components.qualityReport.colTotal")}</th>
                 <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">
-                  <span className="sm:hidden">连上</span>
-                  <span className="hidden sm:inline">最大连续上场</span>
+                  <span className="sm:hidden">{t("components.qualityReport.colMaxPlayingShort")}</span>
+                  <span className="hidden sm:inline">{t("components.qualityReport.colMaxPlaying")}</span>
                 </th>
                 <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">
-                  <span className="sm:hidden">连空</span>
-                  <span className="hidden sm:inline">最大连续轮空</span>
+                  <span className="sm:hidden">{t("components.qualityReport.colMaxRestingShort")}</span>
+                  <span className="hidden sm:inline">{t("components.qualityReport.colMaxResting")}</span>
                 </th>
                 <th className="p-3 text-center font-semibold text-gray-600 whitespace-nowrap">
-                  最长休息
+                  {t("components.qualityReport.colLongestRest")}
                 </th>
               </tr>
             </thead>
@@ -96,7 +98,7 @@ export function QualityReport({
                     </td>
                     <td className="p-3 text-center">
                       <span className={`text-xs font-bold px-2 py-0.5 squircle-pill ${stat.gender === "M" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-600"}`}>
-                        {stat.gender === "M" ? "男" : "女"}
+                        {stat.gender === "M" ? t("components.qualityReport.male") : t("components.qualityReport.female")}
                       </span>
                     </td>
                     <td className="p-3 text-center font-bold text-gray-700">{stat.totalMatches}</td>
@@ -114,7 +116,7 @@ export function QualityReport({
                     </td>
                     <td className="p-3 text-center">
                       <span className={`font-bold ${restMinutes >= 60 ? "text-amber-500" : "text-gray-500"}`}>
-                        {restMinutes}分钟
+                        {t("components.qualityReport.minutes", { n: restMinutes })}
                       </span>
                     </td>
                   </tr>

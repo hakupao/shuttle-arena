@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { matches, players, tournaments } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -20,10 +21,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorized") }, { status: 403 });
   }
 
   try {
@@ -31,7 +33,7 @@ export async function PATCH(
     const { id } = await params;
     const matchId = parseInt(id, 10);
     if (isNaN(matchId)) {
-      return NextResponse.json({ error: "Invalid match ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidMatchId") }, { status: 400 });
     }
 
     const body = await request.json() as {
@@ -60,17 +62,17 @@ export async function PATCH(
       .get();
 
     if (!match) {
-      return NextResponse.json({ error: "Match not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.matchNotFound") }, { status: 404 });
     }
 
     const tournament = await db.select().from(tournaments).where(eq(tournaments.id, match.tournamentId)).get();
     if (tournament?.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     if (match.status !== "pending") {
       return NextResponse.json(
-        { error: "只能在比赛未开始时换人" },
+        { error: t("api.swapNotStarted") },
         { status: 400 }
       );
     }
@@ -79,11 +81,11 @@ export async function PATCH(
     const currentPlayerId = match[columnKey];
 
     if (!currentPlayerId) {
-      return NextResponse.json({ error: "该位置无选手" }, { status: 400 });
+      return NextResponse.json({ error: t("api.swapNoPlayer") }, { status: 400 });
     }
 
     if (currentPlayerId === newPlayerId) {
-      return NextResponse.json({ error: "新选手与当前选手相同" }, { status: 400 });
+      return NextResponse.json({ error: t("api.swapSamePlayer") }, { status: 400 });
     }
 
     // Load both players to verify they share the same (groupId, positionNumber)
@@ -93,7 +95,7 @@ export async function PATCH(
     ]);
 
     if (!currentPlayer || !newPlayer) {
-      return NextResponse.json({ error: "选手不存在" }, { status: 404 });
+      return NextResponse.json({ error: t("api.swapPlayerNotFound") }, { status: 404 });
     }
 
     if (
@@ -101,7 +103,7 @@ export async function PATCH(
       currentPlayer.positionNumber !== newPlayer.positionNumber
     ) {
       return NextResponse.json(
-        { error: "只能在同一位置的主选手和轮换之间切换" },
+        { error: t("api.swapSlotMismatch") },
         { status: 400 }
       );
     }
@@ -122,6 +124,6 @@ export async function PATCH(
     return NextResponse.json({ match: updated });
   } catch (error) {
     console.error("Swap player error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

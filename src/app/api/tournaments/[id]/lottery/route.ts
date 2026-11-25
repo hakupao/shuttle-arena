@@ -4,18 +4,20 @@ import { tournamentParticipants, tournaments, groups, players, users } from "@/d
 import { requireAdmin } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
 // POST: Run lottery - randomly assign participants to teams based on their position
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
+    return NextResponse.json({ error: t("api.unauthorizedAdmin") }, { status: 403 });
   }
 
   try {
@@ -23,7 +25,7 @@ export async function POST(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -33,11 +35,11 @@ export async function POST(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     if (tournament.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const tournamentGroups = (await db
@@ -61,7 +63,7 @@ export async function POST(
 
     if (participants.length === 0) {
       return NextResponse.json(
-        { error: "没有已分配位置的参赛者，请先分配位置" },
+        { error: t("api.lotteryNoAssigned") },
         { status: 400 }
       );
     }
@@ -126,7 +128,7 @@ export async function POST(
         if (!playerSlot) continue;
 
         const user = userMap.get(participant.userId);
-        const username = user?.username || "未知";
+        const username = user?.username || t("api.unknown");
 
         // Update player name only if not already set
         if (!playerSlot.name) {
@@ -154,10 +156,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       assignments,
-      message: `摇号完成！共分配 ${assignments.length} 人`,
+      message: t("api.lotteryDone", { n: assignments.length }),
     });
   } catch (error) {
     console.error("Lottery error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

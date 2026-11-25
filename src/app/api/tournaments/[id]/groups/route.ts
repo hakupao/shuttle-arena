@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { groups, players, users, tournaments } from "@/db/schema";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -27,15 +28,16 @@ interface PlayerAssignmentRequest {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournamentGroups = await db
@@ -90,7 +92,7 @@ export async function GET(
     return NextResponse.json({ groups: groupsWithPlayers });
   } catch (error) {
     console.error("List groups error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -99,10 +101,11 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: t("api.unauthorized") }, { status: 401 });
   }
 
   try {
@@ -110,12 +113,12 @@ export async function PUT(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).get();
     if (tournament?.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const body = await request.json() as GroupUpdateRequest;
@@ -170,7 +173,7 @@ export async function PUT(
     return NextResponse.json({ groups: updatedGroups });
   } catch (error) {
     console.error("Update groups error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -179,11 +182,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -193,12 +197,12 @@ export async function POST(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).get();
     if (tournament?.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const body = await request.json() as PlayerAssignmentRequest;
@@ -276,6 +280,6 @@ export async function POST(
     return NextResponse.json({ players: updatedPlayers });
   } catch (error) {
     console.error("Assign players error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

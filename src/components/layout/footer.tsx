@@ -1,7 +1,11 @@
+"use client";
+
 import { Globe, Github, Mail } from "lucide-react";
 import { ShuttlecockIcon } from "@/components/brand/shuttlecock-icon";
+import { useT } from "@/i18n/provider";
 
 export function Footer() {
+  const t = useT();
   return (
     <footer className="mt-auto border-t border-gray-100 bg-white/60 backdrop-blur-sm">
       <div className="container mx-auto max-w-7xl px-4 py-5 md:py-6">
@@ -17,14 +21,14 @@ export function Footer() {
 
           {/* Right: tagline + links */}
           <div className="flex flex-col items-end gap-1.5">
-            <span className="text-gray-400">让每一场比赛，都值得被记住</span>
+            <span className="text-gray-400">{t("common.footer.tagline")}</span>
             <div className="flex items-center gap-3">
               <a
                 href="https://bojiang.org"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-green-600 transition-colors"
-                aria-label="个人主页"
+                aria-label={t("common.footer.homepage")}
               >
                 <Globe className="w-3.5 h-3.5" />
               </a>
@@ -40,7 +44,7 @@ export function Footer() {
               <a
                 href="mailto:cnhakupao@yahoo.co.jp"
                 className="text-gray-300 hover:text-blue-500 transition-colors"
-                aria-label="发送邮件"
+                aria-label={t("common.footer.sendEmail")}
               >
                 <Mail className="w-3.5 h-3.5" />
               </a>

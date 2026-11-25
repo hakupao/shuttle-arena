@@ -6,6 +6,7 @@ import { SCORING_MODES, type ScoringMode } from "@/lib/constants";
 import { buildScoredGames, MAX_SCORE_EVENTS } from "@/lib/score-validation";
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
@@ -34,11 +35,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; matchId: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json(
-        { error: "请先登录后再记分" },
+        { error: t("api.scoreLoginRequired") },
         { status: 401 }
       );
     }
@@ -48,7 +50,7 @@ export async function POST(
     const matchId = parseInt(matchIdStr, 10);
 
     if (isNaN(tournamentId) || isNaN(matchId)) {
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidId") }, { status: 400 });
     }
 
     const match = await db
@@ -58,13 +60,13 @@ export async function POST(
       .get();
 
     if (!match || match.tournamentId !== tournamentId) {
-      return NextResponse.json({ error: "Match not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.matchNotFound") }, { status: 404 });
     }
 
     // Block all scoring for archived tournaments
     const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).get();
     if (tournament?.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const isAdmin = user.role === "admin";
@@ -74,14 +76,14 @@ export async function POST(
     // Logged-in spectator accounts with no player binding cannot.
     if (!isAdmin && user.playerId == null) {
       return NextResponse.json(
-        { error: "只有管理员或参赛选手可以记分" },
+        { error: t("api.scoreAdminOrPlayer") },
         { status: 403 }
       );
     }
 
     if (match.status === "finished" && !isAdmin) {
       return NextResponse.json(
-        { error: "比分已提交，如需修改请联系管理员" },
+        { error: t("api.scoreAlreadySubmitted") },
         { status: 403 }
       );
     }
@@ -100,7 +102,7 @@ export async function POST(
 
     if (scoreEventLog.length > MAX_SCORE_EVENTS) {
       return NextResponse.json(
-        { error: "计分明细条目过多" },
+        { error: t("api.scoreTooManyEvents") },
         { status: 400 }
       );
     }
@@ -112,21 +114,21 @@ export async function POST(
 
       if (claimedIds.length > 0 && !user) {
         return NextResponse.json(
-          { error: "匿名记分不能登记裁判身份，请先登录并绑定选手" },
+          { error: t("api.scoreAnonymousReferee") },
           { status: 401 }
         );
       }
 
       if (claimedIds.length > 0 && !user?.playerId) {
         return NextResponse.json(
-          { error: "你的账号未绑定选手，不能登记裁判身份" },
+          { error: t("api.scoreNoLinkedPlayer") },
           { status: 400 }
         );
       }
 
       if (claimedIds.some((playerId) => playerId !== user?.playerId)) {
         return NextResponse.json(
-          { error: "普通用户只能登记自己的裁判身份" },
+          { error: t("api.scoreOwnRefereeOnly") },
           { status: 403 }
         );
       }
@@ -134,7 +136,7 @@ export async function POST(
 
     // Validate scores + derive per-game and match winners. Pure and unit-tested
     // in score-validation.test.ts.
-    const scored = buildScoredGames(games, scoringInfo.games);
+    const scored = buildScoredGames(games, scoringInfo.games, t);
     if (!scored.ok) {
       return NextResponse.json({ error: scored.error }, { status: 400 });
     }
@@ -210,6 +212,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("Score match error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

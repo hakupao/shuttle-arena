@@ -3,6 +3,8 @@ import { getDb } from "@/db";
 import { users } from "@/db/schema";
 import { hashPassword, createToken } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { getRequestT } from "@/i18n/server";
+import { validatePassword, validateUsername } from "@/lib/account-validation";
 
 export const runtime = 'edge';
 
@@ -12,6 +14,7 @@ interface RegisterRequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const body = await request.json() as RegisterRequestBody;
@@ -20,23 +23,19 @@ export async function POST(request: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: t("api.credentialsRequired") },
         { status: 400 }
       );
     }
 
-    if (username.length < 2) {
-      return NextResponse.json(
-        { error: "Username must be at least 2 characters" },
-        { status: 400 }
-      );
+    const usernameError = validateUsername(username, t);
+    if (usernameError) {
+      return NextResponse.json({ error: usernameError }, { status: 400 });
     }
 
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
+    const passwordError = validatePassword(password, t);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
     // Check if username already exists
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { error: "Username already exists" },
+        { error: t("api.usernameExists") },
         { status: 409 }
       );
     }
@@ -96,7 +95,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: t("api.internalError") },
       { status: 500 }
     );
   }

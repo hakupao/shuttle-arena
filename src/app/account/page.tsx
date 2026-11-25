@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { ShuttlecockIcon } from "@/components/brand/shuttlecock-icon";
 import { useAuth } from "@/lib/auth-context";
 import { KeyRound, LogIn, Save, Shield, User } from "lucide-react";
+import { useT } from "@/i18n/provider";
 
 interface UpdateAccountResponse {
   user?: {
@@ -23,6 +24,7 @@ interface UpdateAccountResponse {
 }
 
 export default function AccountPage() {
+  const t = useT();
   const { user, loading, refresh } = useAuth();
   const [username, setUsername] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -40,7 +42,7 @@ export default function AccountPage() {
     event.preventDefault();
 
     if (!user) {
-      toast.error("请先登录");
+      toast.error(t("account.loginFirst"));
       return;
     }
 
@@ -49,27 +51,27 @@ export default function AccountPage() {
     const passwordChanged = newPassword.length > 0;
 
     if (!currentPassword) {
-      toast.error("请输入当前密码");
+      toast.error(t("account.enterCurrentPassword"));
       return;
     }
 
     if (!usernameChanged && !passwordChanged) {
-      toast.error("没有需要保存的修改");
+      toast.error(t("account.nothingToSave"));
       return;
     }
 
     if (trimmedUsername.length < 2) {
-      toast.error("用户名至少 2 个字符");
+      toast.error(t("account.usernameTooShort", { min: 2 }));
       return;
     }
 
     if (passwordChanged && newPassword.length < 8) {
-      toast.error("新密码至少 8 位");
+      toast.error(t("account.newPasswordTooShort", { min: 8 }));
       return;
     }
 
     if (passwordChanged && newPassword !== confirmPassword) {
-      toast.error("两次输入的新密码不一致");
+      toast.error(t("account.passwordMismatch"));
       return;
     }
 
@@ -87,7 +89,7 @@ export default function AccountPage() {
 
       const data = await response.json() as UpdateAccountResponse;
       if (!response.ok) {
-        throw new Error(data.error || "保存失败");
+        throw new Error(data.error || t("account.saveFailed"));
       }
 
       await refresh();
@@ -95,16 +97,16 @@ export default function AccountPage() {
       setNewPassword("");
       setConfirmPassword("");
       setUsername(data.user?.username || trimmedUsername);
-      toast.success("账号信息已更新");
+      toast.success(t("account.updated"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "保存失败");
+      toast.error(error instanceof Error ? error.message : t("account.saveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="py-12 text-center text-gray-400">加载中...</div>;
+    return <div className="py-12 text-center text-gray-400">{t("account.loading")}</div>;
   }
 
   if (!user) {
@@ -113,10 +115,10 @@ export default function AccountPage() {
         <Card className="border-dashed border-green-200 bg-green-50/50">
           <CardContent className="py-10 text-center">
             <LogIn className="mx-auto mb-3 h-8 w-8 text-green-500" />
-            <p className="text-sm font-medium text-gray-700">请先登录</p>
+            <p className="text-sm font-medium text-gray-700">{t("account.loginFirst")}</p>
             <Link href="/login" className="mt-4 inline-block">
               <Button size="sm" className="bg-green-600 text-white hover:bg-green-700">
-                前往登录
+                {t("account.goLogin")}
               </Button>
             </Link>
           </CardContent>
@@ -139,13 +141,13 @@ export default function AccountPage() {
             <div>
               <div className="flex items-center gap-1.5 text-xs text-green-50/80">
                 <User className="h-3.5 w-3.5" />
-                我的账号
+                {t("account.title")}
               </div>
               <h1 className="mt-1 text-xl font-bold">{user.username}</h1>
             </div>
             <Badge className="border-white/25 bg-white/15 text-white text-xs">
               {isAdmin ? <Shield className="h-3 w-3" /> : <ShuttlecockIcon className="h-3 w-3" />}
-              {isAdmin ? "管理员" : "运动员"}
+              {isAdmin ? t("account.roleAdmin") : t("account.roleAthlete")}
             </Badge>
           </div>
         </div>
@@ -155,34 +157,34 @@ export default function AccountPage() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-gray-800">
             <KeyRound className="h-3.5 w-3.5 text-green-600" />
-            修改账号信息
+            {t("account.editTitle")}
           </CardTitle>
           <CardDescription className="text-xs">
-            修改前需输入当前密码。新密码留空则仅改用户名。
+            {t("account.editDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="account-username">用户名</Label>
+              <Label htmlFor="account-username">{t("account.username")}</Label>
               <Input
                 id="account-username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入用户名"
+                placeholder={t("account.usernamePlaceholder")}
                 className="h-11"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="account-current-password">当前密码</Label>
+              <Label htmlFor="account-current-password">{t("account.currentPassword")}</Label>
               <Input
                 id="account-current-password"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="请输入当前密码"
+                placeholder={t("account.currentPasswordPlaceholder")}
                 className="h-11"
                 required
               />
@@ -190,25 +192,25 @@ export default function AccountPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="account-new-password">新密码</Label>
+                <Label htmlFor="account-new-password">{t("account.newPassword")}</Label>
                 <Input
                   id="account-new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="留空则不修改"
+                  placeholder={t("account.newPasswordPlaceholder")}
                   className="h-11"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="account-confirm-password">确认新密码</Label>
+                <Label htmlFor="account-confirm-password">{t("account.confirmNewPassword")}</Label>
                 <Input
                   id="account-confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次输入新密码"
+                  placeholder={t("account.confirmNewPasswordPlaceholder")}
                   className="h-11"
                 />
               </div>
@@ -221,7 +223,7 @@ export default function AccountPage() {
                 className="h-10 bg-green-600 px-4 font-semibold text-white hover:bg-green-700"
               >
                 <Save className="h-4 w-4" />
-                {saving ? "保存中..." : "保存修改"}
+                {saving ? t("account.saving") : t("account.save")}
               </Button>
               <Button
                 type="button"
@@ -235,7 +237,7 @@ export default function AccountPage() {
                 }}
                 disabled={saving}
               >
-                重置表单
+                {t("account.reset")}
               </Button>
             </div>
           </form>

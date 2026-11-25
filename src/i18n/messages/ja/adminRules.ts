@@ -1,0 +1,36 @@
+import type { Messages } from "../zh";
+
+const adminRules: Messages["adminRules"] = {
+  loadFailed: "大会形式の設定を読み込めませんでした",
+  templateReset: "テンプレートの下書きを現在の編成のデフォルトに戻しました",
+  noChanges: "保存する変更はありません",
+  warnGroupCount: "グループ数を変更すると、正式日程が消去され、新しいグループ数でチームの枠がすべて再作成されます。",
+  warnRosterShape: "グループごとの男女人数を変更すると、正式日程、参加者のポジション割り当て、アカウント連携が消去され、テンプレート構成もリセットされます。",
+  warnTemplate: "試合テンプレートを保存すると、現在の正式日程と、入力済みのスコア、審判記録、得点タイムラインが消去されます。",
+  saveGroupFailed: "グループ設定の保存に失敗しました",
+  saveTemplateFailed: "試合テンプレートの保存に失敗しました",
+  saved: "大会形式の設定を保存しました",
+  networkError: "ネットワークエラー",
+  loading: "読み込み中...",
+  title: "大会形式設定",
+  selectTournamentFirst: "先に管理画面で大会を選択してください",
+  resetTemplate: "デフォルトに戻す",
+  saving: "保存中...",
+  saveSettings: "設定を保存",
+  groupSetup: "グループ編成",
+  groupCount: "グループ数",
+  malesPerGroup: "グループごとの男子",
+  femalesPerGroup: "グループごとの女子",
+  playersPerGroup: "グループ人数",
+  peopleCount: "{n} 人",
+  totalPlayers: "総参加人数",
+  positionSetup: "ポジション編成",
+  totalMatches: "総試合数",
+  matchTemplate: "試合テンプレート",
+  addMatch: "試合を追加",
+  lineup: "出場ペア",
+  mirrorHint: "相手チームは自動でミラー設定: Aグループ {p1} + {p2} vs Bグループ {p1} + {p2}",
+  noMatches: "試合がありません。「試合を追加」をクリックして設定を始めましょう",
+};
+
+export default adminRules;

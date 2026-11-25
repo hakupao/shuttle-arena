@@ -1,0 +1,38 @@
+import type { Messages } from "../zh";
+
+const adminPlayers: Messages["adminPlayers"] = {
+  loadFailed: "Failed to load",
+  unbound: "Unlinked",
+  savedChanges: "Saved {n} change(s)",
+  saveFailed: "Failed to save",
+  networkError: "Network error",
+  alternateAdded: "Alternate slot added",
+  addFailed: "Failed to add",
+  alternateRemoved: "Alternate slot removed",
+  removeFailed: "Failed to remove",
+  loading: "Loading...",
+  title: "Player setup",
+  noGroups: "No team data yet",
+  noTournament: "No tournament selected",
+  noGroupsHint: "Set up the teams in the format settings first",
+  noTournamentHint: "Go back to the admin dashboard and select a tournament first",
+  badgeSummary: "Linked {bound}/{total} · Named {named}/{total}",
+  clearAll: "Clear all",
+  saving: "Saving...",
+  saveChanges: "Save changes",
+  saveChangesCount: "Save changes ({n})",
+  registeredAthletes: "Registered athletes: {n}",
+  boundStat: "Linked: {bound}/{total}",
+  alternateNamePlaceholder: "Alternate name",
+  namePlaceholder: "Enter name (default: {icon} position {n})",
+  bindAccountOptional: "Link account (optional)",
+  noBinding: "Enter name manually, no account",
+  boundSuffix: "(linked)",
+  removeAlternate: "Remove alternate",
+  addAlternate: "Add alternate",
+  changesCount: "{n} change(s)",
+  undo: "Undo",
+  save: "Save",
+};
+
+export default adminPlayers;

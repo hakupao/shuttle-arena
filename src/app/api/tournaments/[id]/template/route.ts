@@ -12,19 +12,21 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { eq, inArray } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
+import { getRequestT } from "@/i18n/server";
 
 export const runtime = 'edge';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     const db = getDb();
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const positions = await db
@@ -43,7 +45,7 @@ export async function GET(
     return NextResponse.json({ positions, matches });
   } catch (error) {
     console.error("Get template error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }
 
@@ -51,11 +53,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const t = getRequestT(request);
   try {
     await requireAdmin();
   } catch {
     return NextResponse.json(
-      { error: "Unauthorized: Admin access required" },
+      { error: t("api.unauthorizedAdmin") },
       { status: 403 }
     );
   }
@@ -65,7 +68,7 @@ export async function PUT(
     const { id } = await params;
     const tournamentId = parseInt(id, 10);
     if (isNaN(tournamentId)) {
-      return NextResponse.json({ error: "Invalid tournament ID" }, { status: 400 });
+      return NextResponse.json({ error: t("api.invalidTournamentId") }, { status: 400 });
     }
 
     const tournament = await db
@@ -75,11 +78,11 @@ export async function PUT(
       .get();
 
     if (!tournament) {
-      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+      return NextResponse.json({ error: t("api.tournamentNotFound") }, { status: 404 });
     }
 
     if (tournament.status === "archived") {
-      return NextResponse.json({ error: "赛事已归档，数据已冻结，不能修改" }, { status: 403 });
+      return NextResponse.json({ error: t("api.archivedFrozen") }, { status: 403 });
     }
 
     const body = await request.json() as {
@@ -104,7 +107,7 @@ export async function PUT(
     const totalPositions = tournament.malesPerGroup + tournament.femalesPerGroup;
     if (positions.length !== totalPositions) {
       return NextResponse.json(
-        { error: `位置数量必须等于当前编制的 ${totalPositions} 个位置` },
+        { error: t("api.templatePositionCount", { n: totalPositions }) },
         { status: 400 }
       );
     }
@@ -125,14 +128,14 @@ export async function PUT(
 
       if (pos.positionNumber < 1 || pos.positionNumber > totalPositions) {
         return NextResponse.json(
-          { error: `位置号必须在 1-${totalPositions} 之间` },
+          { error: t("api.positionRange", { max: totalPositions }) },
           { status: 400 }
         );
       }
 
       if (positionGenderMap.has(pos.positionNumber)) {
         return NextResponse.json(
-          { error: `位置 ${pos.positionNumber} 重复定义` },
+          { error: t("api.templatePositionDup", { pos: pos.positionNumber }) },
           { status: 400 }
         );
       }
@@ -140,7 +143,7 @@ export async function PUT(
       const expectedGender = pos.positionNumber <= tournament.malesPerGroup ? "M" : "F";
       if (pos.gender !== expectedGender) {
         return NextResponse.json(
-          { error: `位置 ${pos.positionNumber} 的性别必须为 ${expectedGender}` },
+          { error: t("api.templatePositionGender", { pos: pos.positionNumber, gender: expectedGender }) },
           { status: 400 }
         );
       }
@@ -199,14 +202,14 @@ export async function PUT(
 
       if (matchPositions.some((position) => !positionGenderMap.has(position))) {
         return NextResponse.json(
-          { error: "模板中的位置引用必须存在于当前位置编制中" },
+          { error: t("api.templateRefMissing") },
           { status: 400 }
         );
       }
 
       if (match.homePos1 === match.homePos2 || match.awayPos1 === match.awayPos2) {
         return NextResponse.json(
-          { error: "同一侧不能重复使用同一个位置" },
+          { error: t("api.templateSideDup") },
           { status: 400 }
         );
       }
@@ -225,7 +228,7 @@ export async function PUT(
         [...homeGenders, ...awayGenders].some((gender) => gender !== "M")
       ) {
         return NextResponse.json(
-          { error: "男双只能使用男子位置" },
+          { error: t("api.templateMensOnly") },
           { status: 400 }
         );
       }
@@ -235,7 +238,7 @@ export async function PUT(
         [...homeGenders, ...awayGenders].some((gender) => gender !== "F")
       ) {
         return NextResponse.json(
-          { error: "女双只能使用女子位置" },
+          { error: t("api.templateWomensOnly") },
           { status: 400 }
         );
       }
@@ -245,7 +248,7 @@ export async function PUT(
         (new Set(homeGenders).size !== 2 || new Set(awayGenders).size !== 2)
       ) {
         return NextResponse.json(
-          { error: "混双每一侧必须各由一男一女组成" },
+          { error: t("api.templateMixedPair") },
           { status: 400 }
         );
       }
@@ -315,6 +318,6 @@ export async function PUT(
     });
   } catch (error) {
     console.error("Update template error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: t("api.internalError") }, { status: 500 });
   }
 }

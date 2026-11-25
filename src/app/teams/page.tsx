@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useTournament } from "@/lib/tournament-context";
 import { Users } from "lucide-react";
+import { useT } from "@/i18n/provider";
 
 interface Player {
   id: number;
@@ -47,8 +48,9 @@ function PlayerChip({
   groupIcon: string;
   accent: "blue" | "pink";
 }) {
+  const t = useT();
   const isSub = player.slotIndex === 2;
-  const displayName = player.name || `${groupIcon}${player.positionNumber}号`;
+  const displayName = player.name || `${groupIcon}${player.positionNumber}${t("common.position.suffix")}`;
 
   return (
     <div
@@ -89,7 +91,7 @@ function PlayerChip({
           variant="outline"
           className="text-[9px] px-1 py-0 border-amber-300 text-amber-600 bg-amber-100/80 font-semibold"
         >
-          轮换
+          {t("teams.rotation")}
         </Badge>
       )}
     </div>
@@ -105,6 +107,7 @@ function TeamCard({
   players: Player[];
   index: number;
 }) {
+  const t = useT();
   const males = players.filter((p) => p.gender === "M");
   const females = players.filter((p) => p.gender === "F");
   const accent = CARD_ACCENTS[index % CARD_ACCENTS.length];
@@ -125,7 +128,7 @@ function TeamCard({
         <div className="flex flex-col min-w-0">
           <h3 className="text-lg font-bold text-gray-900 truncate">{group.name}</h3>
           <span className="text-xs text-gray-400 font-medium">
-            {players.length} 名成员
+            {t("teams.memberCount", { n: players.length })}
           </span>
         </div>
       </div>
@@ -136,7 +139,7 @@ function TeamCard({
       {/* player sections */}
       <div className="flex flex-col gap-3 px-5 py-4">
         {players.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-3">暂无成员信息</p>
+          <p className="text-xs text-gray-400 text-center py-3">{t("teams.noMembers")}</p>
         ) : (
           <>
             {males.length > 0 && (
@@ -144,7 +147,7 @@ function TeamCard({
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                   <span className="text-[11px] font-semibold text-blue-600/90 uppercase tracking-wider">
-                    男子
+                    {t("teams.male")}
                   </span>
                   <span className="text-[10px] text-gray-400">({males.length})</span>
                 </div>
@@ -165,7 +168,7 @@ function TeamCard({
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-pink-400" />
                   <span className="text-[11px] font-semibold text-pink-600/90 uppercase tracking-wider">
-                    女子
+                    {t("teams.female")}
                   </span>
                   <span className="text-[10px] text-gray-400">({females.length})</span>
                 </div>
@@ -189,6 +192,7 @@ function TeamCard({
 }
 
 function TeamsContent() {
+  const t = useT();
   const { currentId, loading: tournamentLoading } = useTournament();
   const [data, setData] = useState<TournamentData | null>(null);
   const [loadedTournamentId, setLoadedTournamentId] = useState<number | null>(null);
@@ -228,7 +232,7 @@ function TeamsContent() {
       <div className="space-y-6">
         <div className="flex items-center gap-2.5">
           <Users className="w-5 h-5 text-green-700" />
-          <h1 className="text-2xl font-bold text-green-900">队伍阵容</h1>
+          <h1 className="text-2xl font-bold text-green-900">{t("teams.title")}</h1>
         </div>
         {/* skeleton cards */}
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -245,11 +249,11 @@ function TeamsContent() {
       <div className="space-y-4">
         <div className="flex items-center gap-2.5">
           <Users className="w-5 h-5 text-green-700" />
-          <h1 className="text-2xl font-bold text-green-900">队伍阵容</h1>
+          <h1 className="text-2xl font-bold text-green-900">{t("teams.title")}</h1>
         </div>
         <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-gray-200 bg-gray-50/50">
           <Users className="w-10 h-10 text-gray-300 mb-3" />
-          <p className="text-sm text-muted-foreground">暂无队伍信息</p>
+          <p className="text-sm text-muted-foreground">{t("teams.noTeams")}</p>
         </div>
       </div>
     );
@@ -261,12 +265,12 @@ function TeamsContent() {
     <div className="space-y-6">
       <div className="flex items-center gap-2.5">
         <Users className="w-5 h-5 text-green-700" />
-        <h1 className="text-2xl font-bold text-green-900">队伍阵容</h1>
+        <h1 className="text-2xl font-bold text-green-900">{t("teams.title")}</h1>
         <Badge
           variant="outline"
           className="text-xs text-gray-400 border-gray-200 font-medium"
         >
-          {sortedGroups.length} 支队伍
+          {t("teams.teamCount", { n: sortedGroups.length })}
         </Badge>
       </div>
 
@@ -294,9 +298,10 @@ function TeamsContent() {
 }
 
 export default function TeamsPage() {
+  const t = useT();
   return (
     <Suspense
-      fallback={<div className="text-center py-12 text-muted-foreground">加载中...</div>}
+      fallback={<div className="text-center py-12 text-muted-foreground">{t("teams.loading")}</div>}
     >
       <TeamsContent />
     </Suspense>

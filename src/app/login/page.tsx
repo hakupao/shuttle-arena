@@ -10,12 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
 import { UserPlus, CheckCircle } from "lucide-react";
 import { SiteLogo } from "@/components/brand/site-logo";
+import { useT } from "@/i18n/provider";
 
 interface AuthErrorResponse {
   error?: string;
 }
 
 export default function LoginPage() {
+  const t = useT();
   const router = useRouter();
   const { login } = useAuth();
   const loginFormRef = useRef<HTMLFormElement>(null);
@@ -46,7 +48,7 @@ export default function LoginPage() {
     if (result.ok) {
       router.push("/");
     } else {
-      setLoginError(result.error || "登录失败");
+      setLoginError(result.error || t("login.loginFailed"));
     }
   };
 
@@ -66,15 +68,15 @@ export default function LoginPage() {
     setRegError("");
 
     if (regPassword !== regConfirm) {
-      setRegError("两次输入的密码不一致");
+      setRegError(t("login.passwordMismatch"));
       return;
     }
     if (regPassword.length < 8) {
-      setRegError("密码至少 8 位");
+      setRegError(t("login.passwordTooShort", { min: 8 }));
       return;
     }
     if (regUsername.trim().length < 2) {
-      setRegError("用户名至少 2 个字符");
+      setRegError(t("login.usernameTooShort", { min: 2 }));
       return;
     }
 
@@ -98,10 +100,10 @@ export default function LoginPage() {
           setTimeout(() => router.push("/"), 1000);
         }
       } else {
-        setRegError(data.error || "注册失败");
+        setRegError(data.error || t("login.registerFailed"));
       }
     } catch {
-      setRegError("网络错误");
+      setRegError(t("login.networkError"));
     } finally {
       setRegLoading(false);
     }
@@ -131,13 +133,13 @@ export default function LoginPage() {
                   value="login"
                   className="font-semibold data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-md"
                 >
-                  登录
+                  {t("login.tabLogin")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="register"
                   className="font-semibold data-[state=active]:bg-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
                 >
-                  运动员注册
+                  {t("login.tabRegister")}
                 </TabsTrigger>
               </TabsList>
 
@@ -145,27 +147,27 @@ export default function LoginPage() {
               <TabsContent value="login">
                 <form ref={loginFormRef} onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="login-username" className="text-gray-600 text-sm font-medium">用户名</Label>
+                    <Label htmlFor="login-username" className="text-gray-600 text-sm font-medium">{t("login.username")}</Label>
                     <Input
                       id="login-username"
                       value={loginUsername}
                       onChange={(e) => setLoginUsername(e.target.value)}
                       onKeyDown={handleLoginKeyDown}
-                      placeholder="请输入用户名"
+                      placeholder={t("login.usernamePlaceholder")}
                       className="h-11 border-gray-200 focus:border-green-400 focus:ring-green-400/30 transition-colors"
                       autoFocus
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-gray-600 text-sm font-medium">密码</Label>
+                    <Label htmlFor="login-password" className="text-gray-600 text-sm font-medium">{t("login.password")}</Label>
                     <Input
                       id="login-password"
                       type="password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       onKeyDown={handleLoginKeyDown}
-                      placeholder="请输入密码"
+                      placeholder={t("login.passwordPlaceholder")}
                       className="h-11 border-gray-200 focus:border-green-400 focus:ring-green-400/30 transition-colors"
                       required
                     />
@@ -182,7 +184,7 @@ export default function LoginPage() {
                     className="w-full h-11 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold shadow-md shadow-green-200/50 transition-all"
                     disabled={loginLoading}
                   >
-                    {loginLoading ? "登录中..." : "登录"}
+                    {loginLoading ? t("login.loggingIn") : t("login.submitLogin")}
                   </Button>
                 </form>
               </TabsContent>
@@ -192,47 +194,47 @@ export default function LoginPage() {
                 {regSuccess ? (
                   <div className="text-center py-8">
                     <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                    <p className="text-lg font-bold text-green-700">注册成功！</p>
-                    <p className="text-sm text-gray-500 mt-2">正在跳转...</p>
+                    <p className="text-lg font-bold text-green-700">{t("login.registerSuccess")}</p>
+                    <p className="text-sm text-gray-500 mt-2">{t("login.redirecting")}</p>
                   </div>
                 ) : (
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="bg-teal-50 border border-teal-100 squircle-lg p-3 text-sm text-teal-700 flex items-start gap-2">
                       <UserPlus className="w-4 h-4 mt-0.5 shrink-0" />
-                      <span>运动员注册后可查看个人赛程、比赛记录。管理员稍后可将你绑定到具体参赛位置。</span>
+                      <span>{t("login.registerIntro")}</span>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="reg-username" className="text-gray-600 text-sm font-medium">用户名</Label>
+                      <Label htmlFor="reg-username" className="text-gray-600 text-sm font-medium">{t("login.username")}</Label>
                       <Input
                         id="reg-username"
                         value={regUsername}
                         onChange={(e) => setRegUsername(e.target.value)}
-                        placeholder="建议使用真实姓名或昵称"
+                        placeholder={t("login.regUsernamePlaceholder")}
                         className="h-11 border-gray-200 focus:border-teal-400 focus:ring-teal-400/30 transition-colors"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password" className="text-gray-600 text-sm font-medium">密码</Label>
+                      <Label htmlFor="reg-password" className="text-gray-600 text-sm font-medium">{t("login.password")}</Label>
                       <Input
                         id="reg-password"
                         type="password"
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
-                        placeholder="至少 8 位"
+                        placeholder={t("login.regPasswordPlaceholder", { min: 8 })}
                         className="h-11 border-gray-200 focus:border-teal-400 focus:ring-teal-400/30 transition-colors"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-confirm" className="text-gray-600 text-sm font-medium">确认密码</Label>
+                      <Label htmlFor="reg-confirm" className="text-gray-600 text-sm font-medium">{t("login.confirmPassword")}</Label>
                       <Input
                         id="reg-confirm"
                         type="password"
                         value={regConfirm}
                         onChange={(e) => setRegConfirm(e.target.value)}
-                        placeholder="再次输入密码"
+                        placeholder={t("login.regConfirmPlaceholder")}
                         className="h-11 border-gray-200 focus:border-teal-400 focus:ring-teal-400/30 transition-colors"
                         required
                       />
@@ -249,7 +251,7 @@ export default function LoginPage() {
                       className="w-full h-11 bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-700 hover:to-teal-600 text-white font-bold shadow-md shadow-teal-200/50 transition-all"
                       disabled={regLoading}
                     >
-                      {regLoading ? "注册中..." : "注册运动员账号"}
+                      {regLoading ? t("login.registering") : t("login.submitRegister")}
                     </Button>
                   </form>
                 )}
