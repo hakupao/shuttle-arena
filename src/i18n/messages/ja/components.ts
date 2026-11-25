@@ -4,21 +4,21 @@ const components: Messages["components"] = {
   adminHeader: {
     status: {
       draft: "準備中",
-      active: "進行中",
+      active: "開催中",
       finished: "終了",
       archived: "アーカイブ済み",
     },
   },
   scoreTimeline: {
     title: "得点推移",
-    live: "リアルタイム更新",
+    live: "記録に合わせて更新",
     gameN: "第{n}ゲーム",
   },
   qualityReport: {
-    title: "編成品質レポート",
+    title: "日程品質レポート",
     hasIssues: "要確認",
     good: "良好",
-    colCode: "コード",
+    colCode: "選手",
     colGender: "性別",
     colTotal: "出場数",
     colMaxPlayingShort: "連続出場",

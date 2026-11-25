@@ -1,7 +1,7 @@
 const match = {
   loading: "加载中...",
   notFound: "比赛不存在",
-  backHome: "返回主页",
+  backHome: "返回首页",
   backSchedule: "返回赛程",
   roundCourt: "第 {round} 轮 · 场地 {court}",
   finished: "已完成",

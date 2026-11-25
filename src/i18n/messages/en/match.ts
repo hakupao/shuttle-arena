@@ -2,7 +2,7 @@ import type { Messages } from "../zh";
 
 const match: Messages["match"] = {
   loading: "Loading...",
-  notFound: "Match not found",
+  notFound: "Match not found.",
   backHome: "Back to home",
   backSchedule: "Back to schedule",
   roundCourt: "Round {round} · Court {court}",
@@ -10,8 +10,8 @@ const match: Messages["match"] = {
   inProgress: "In progress",
   pending: "Upcoming",
   wins: "{name} wins",
-  refereesTitle: "Referee & line judges",
-  referee: "Referee",
+  refereesTitle: "Umpire & line judges",
+  referee: "Umpire",
   lineJudge: "Line judge",
   editScore: "Edit score",
   enterScoring: "Start scoring",

@@ -4,7 +4,7 @@ const myMatches: Messages["myMatches"] = {
   loading: "読み込み中...",
   roundCourt: "第{round}ラウンド · コート{court}",
   win: "勝",
-  loss: "負",
+  loss: "敗",
   inProgress: "進行中",
   pending: "開始前",
   partner: "ペア",

@@ -11,7 +11,7 @@ const account = {
   goLogin: "前往登录",
   title: "我的账号",
   roleAdmin: "管理员",
-  roleAthlete: "运动员",
+  roleAthlete: "选手",
   editTitle: "修改账号信息",
   editDescription: "修改前需输入当前密码。新密码留空则仅改用户名。",
   username: "用户名",

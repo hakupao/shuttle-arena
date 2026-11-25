@@ -11,7 +11,7 @@ const schedule: Messages["schedule"] = {
   viewMatrix: "Grid",
   viewList: "List",
   searchPlaceholder: "Search player name...",
-  searchFound: "{n} matching matches found",
+  searchFound: "{n} matches found",
   mineHint: "Yellow highlight = your matches",
   searchEmpty: "No matches found for \"{query}\"",
   courtShort: "Court {n}",

@@ -9,7 +9,7 @@ const components = {
   },
   scoreTimeline: {
     title: "得分路径",
-    live: "实时更新",
+    live: "随记分更新",
     gameN: "第 {n} 局",
   },
   qualityReport: {

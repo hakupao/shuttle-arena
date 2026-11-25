@@ -27,7 +27,7 @@ const scoring = {
   homeScorePlaceholder: "主队得分",
   awayScorePlaceholder: "客队得分",
   undo: "撤销",
-  timelineEmpty: "开始记分后，这里会实时显示得分路径。",
+  timelineEmpty: "开始记分后，这里会显示得分路径。",
   matchOver: "比赛结束！",
   alreadySubmitted: "这场比赛的比分已经提交。匿名用户和普通用户都不能修改已提交结果，只有管理员可以编辑。",
   submitting: "提交中...",

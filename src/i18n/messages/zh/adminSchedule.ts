@@ -19,7 +19,7 @@ const adminSchedule = {
   paramsTitle: "排程参数",
   courtsCount: "场地数",
   roundMinutes: "每轮时间（分钟）",
-  scoringMode: "计分方式",
+  scoringMode: "记分模式",
   deuce: "追分规则",
   deuceOn: "开启（需领先 2 分）",
   deuceOff: "关闭（达到分数即胜）",

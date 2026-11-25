@@ -68,7 +68,7 @@ const common: Messages["common"] = {
     slotSuffix: "",
   },
   auth: {
-    loginFailed: "Login failed",
+    loginFailed: "Login failed.",
   },
 };
 

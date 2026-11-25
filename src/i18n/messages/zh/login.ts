@@ -1,6 +1,6 @@
 const login = {
   tabLogin: "登录",
-  tabRegister: "运动员注册",
+  tabRegister: "选手注册",
   username: "用户名",
   password: "密码",
   confirmPassword: "确认密码",
@@ -12,7 +12,7 @@ const login = {
   loginFailed: "登录失败",
   loggingIn: "登录中...",
   submitLogin: "登录",
-  registerIntro: "运动员注册后可查看个人赛程、比赛记录。管理员稍后可将你绑定到具体参赛位置。",
+  registerIntro: "注册后，由管理员将你绑定到参赛位置，即可查看个人赛程和比赛记录。",
   passwordMismatch: "两次输入的密码不一致",
   passwordTooShort: "密码至少 {min} 位",
   usernameTooShort: "用户名至少 {min} 个字符",
@@ -21,7 +21,7 @@ const login = {
   registerSuccess: "注册成功！",
   redirecting: "正在跳转...",
   registering: "注册中...",
-  submitRegister: "注册运动员账号",
+  submitRegister: "注册选手账号",
 };
 
 export default login;

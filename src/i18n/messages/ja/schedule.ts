@@ -18,7 +18,7 @@ const schedule: Messages["schedule"] = {
   courtSpaced: "コート {n}",
   matchCourt: "{type} · コート{n}",
   roundShort: "R{n}",
-  roundTitle: "ラウンド {n}",
+  roundTitle: "第{n}ラウンド",
   roundColumn: "ラウンド",
 };
 

@@ -6,7 +6,7 @@ const teams: Messages["teams"] = {
   noMembers: "No member info yet",
   male: "Men",
   female: "Women",
-  title: "Team rosters",
+  title: "Team Rosters",
   noTeams: "No team info yet",
   teamCount: "{n} teams",
   loading: "Loading...",

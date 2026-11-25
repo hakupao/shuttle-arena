@@ -7,7 +7,7 @@ const adminTeams: Messages["adminTeams"] = {
   saveFailed: "保存に失敗しました",
   saved: "チーム設定を保存しました",
   networkError: "ネットワークエラー",
-  selectFirst: "管理画面に戻って大会を選択し、基本の組分けを作成してください",
+  selectFirst: "管理画面に戻って大会を選択し、大会形式設定でチームを編成してください",
   saving: "保存中...",
   save: "保存",
   iconPlaceholder: "アイコン",
